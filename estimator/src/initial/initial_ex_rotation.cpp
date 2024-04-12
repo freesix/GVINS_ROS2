@@ -9,12 +9,13 @@ InitialEXRotation::InitialEXRotation(){
 }
 /**
  * @brief 当外参完全不知道的时候，在线对其初步估计，会在后续优化过程中再次优化
+ * 利用的是旋转约束求解方法
 */
 bool InitialEXRotation::CalibrationExRotation(std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> corres,
             Eigen::Quaterniond delta_q_imu, Eigen::Matrix3d &calib_ric_result){
     frame_count++;
-    Rc.push_back(solveRelativeR(corres));
-    Rimu.push_back(delta_q_imu.toRotationMatrix());
+    Rc.push_back(solveRelativeR(corres)); // 两帧图像间的旋转
+    Rimu.push_back(delta_q_imu.toRotationMatrix()); // imu预积分的旋转
     Rc_g.push_back(ric.inverse() * delta_q_imu * ric);
 
     Eigen::MatrixXd A(frame_count*4, 4);
@@ -26,16 +27,43 @@ bool InitialEXRotation::CalibrationExRotation(std::vector<std::pair<Eigen::Vecto
 
         double angular_distance = 180 / M_PI * r1.angularDistance(r2);
         RCLCPP_DEBUG(rclcpp::get_logger("initial_ex_rotation"), "%d angular_distance: %f", i, angular_distance);
-        
+        // 鲁棒核函数
         double huber = angular_distance > 5.0 ? 5.0 / angular_distance : 1.0;
         ++sum_ok;
         Eigen::Matrix4d L, R;
 
         double w = Eigen::Quaterniond(Rc[i]).w();
-        Eigen::Vector3d v = Eigen::Quaterniond(Rc[i]).vec();
+        Eigen::Vector3d q = Eigen::Quaterniond(Rc[i]).vec();
+        L.block<3, 3>(0,0) = w * Eigen::Matrix3d::Identity() + Utility::skewSymmetric(q);
+        L.block<3, 1>(0,3) = q;
+        L.block<1, 3>(3,0) = -q.transpose();
+        L(3,3) = w;
 
-        L.block<3, 3>(0,0) = w * Eigen::Matrix3d::Identity() - skewSymmetric(v);
-    }           
+        Eigen::Quaterniond R_ij(Rimu[i]);
+        w = R_ij.w();
+        q = R_ij.vec();
+        R.block<3, 3>(0,0) = w * Eigen::Matrix3d::Identity() + Utility::skewSymmetric(q);
+        R.block<3, 1>(0,3) = q;
+        R.block<1, 3>(3,0) = -q.transpose();
+        R(3,3) = w;
+
+        A.block<4, 4>((i-1) * 4, 0) = huber * (L - R);
+    }
+
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);  
+    Eigen::Matrix<double, 4, 1> x = svd.matrixV().col(3); // 最小奇异值对应的奇异向量
+    Eigen::Quaterniond estimated_R(x);
+    ric = estimated_R.toRotationMatrix().inverse();
+
+    Eigen::Vector3d ric_cov;
+    ric_cov = svd.singularValues().tail<3>();
+    if(frame_count >= WINDOW_SIZE && ric_cov(1) > 0.25){
+        calib_ric_result = ric;
+        return true;
+    }
+    else{
+        return false;
+    }
 }
 
 

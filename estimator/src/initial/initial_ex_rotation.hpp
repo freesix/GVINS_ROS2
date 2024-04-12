@@ -4,6 +4,8 @@
 #include <eigen3/Eigen/Dense>
 #include <rclcpp/rclcpp.hpp>
 
+#include "../parameters.hpp"
+
 class InitialEXRotation
 {
 public:

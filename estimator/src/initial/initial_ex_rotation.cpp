@@ -13,7 +13,29 @@ InitialEXRotation::InitialEXRotation(){
 bool InitialEXRotation::CalibrationExRotation(std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> corres,
             Eigen::Quaterniond delta_q_imu, Eigen::Matrix3d &calib_ric_result){
     frame_count++;
-    Rc.push_back(solveRelativeR(corres));           
+    Rc.push_back(solveRelativeR(corres));
+    Rimu.push_back(delta_q_imu.toRotationMatrix());
+    Rc_g.push_back(ric.inverse() * delta_q_imu * ric);
+
+    Eigen::MatrixXd A(frame_count*4, 4);
+    A.setZero();
+    int sum_ok = 0;
+    for(int i=0; i<=frame_count; i++){
+        Eigen::Quaterniond r1(Rc[i]);
+        Eigen::Quaterniond r2(Rc_g[i]);
+
+        double angular_distance = 180 / M_PI * r1.angularDistance(r2);
+        RCLCPP_DEBUG(rclcpp::get_logger("initial_ex_rotation"), "%d angular_distance: %f", i, angular_distance);
+        
+        double huber = angular_distance > 5.0 ? 5.0 / angular_distance : 1.0;
+        ++sum_ok;
+        Eigen::Matrix4d L, R;
+
+        double w = Eigen::Quaterniond(Rc[i]).w();
+        Eigen::Vector3d v = Eigen::Quaterniond(Rc[i]).vec();
+
+        L.block<3, 3>(0,0) = w * Eigen::Matrix3d::Identity() - skewSymmetric(v);
+    }           
 }
 
 

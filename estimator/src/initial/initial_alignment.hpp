@@ -22,4 +22,4 @@ public:
 };
 
 bool VisualIMUAlignment(std::map<double, ImageFrame> &all_image_frame, 
-    Eigen::Vector3d* Bgs, Eigen::Vector3d &g, Eigen::VectorXd &d)
+    Eigen::Vector3d* Bgs, Eigen::Vector3d &g, Eigen::VectorXd &d);

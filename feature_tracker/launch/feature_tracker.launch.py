@@ -9,22 +9,22 @@ def generate_launch_description():
 
     share_dir = get_package_share_directory('gvins_feature_tracker')
     # parameter_file = LaunchConfiguration('config_file')
-
-    params_declare = DeclareLaunchArgument(
+    return LaunchDescription([
+        DeclareLaunchArgument(
         'config_file',
         default_value=os.path.join(share_dir, 'config/visensor_f9p/visensor_left_f9p_config.yaml'),
         description='Full path to the feature tracker configuration file to load'        
-    )
+        ),
     
-    feature_tracker_node = Node(
-        package='gvins_feature_tracker',    
-        executable='feature_tracker_node',
-        parameters=[{'config_file': LaunchConfiguration('config_file')}],
-        output='screen'
-    )
-
-
-    return LaunchDescription([
-        params_declare,
-        feature_tracker_node
+        Node(
+            package='gvins_feature_tracker',    
+            executable='feature_tracker_node',
+            name='my_node',
+            parameters=[{'config_file': LaunchConfiguration('config_file')}],
+            # parameters=[{'config_file': 'config/visensor_f9p/visensor_left_f9p_config.yaml'}],
+            # output='screen'
+        )  
     ])
+   
+
+    

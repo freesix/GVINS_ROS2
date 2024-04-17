@@ -4,7 +4,7 @@
 
 #common parameters
 imu_topic: "/imu0"
-image_topic: "/cam1/image_raw"
+image_topic: "kitti/camera/color/left/image_raw"
 output_dir: "~/output/"
 
 #camera calibration 

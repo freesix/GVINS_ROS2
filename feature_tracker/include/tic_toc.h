@@ -2,6 +2,11 @@
 #include <ctime>
 #include <cstdlib>
 #include <chrono>
+#include <rclcpp/rclcpp.hpp>
+
+inline double stamp2Sec(builtin_interfaces::msg::Time stamp){
+    return static_cast<double>(stamp.sec+(stamp.nanosec * 1e-9));
+}
 
 class TicToc
 {

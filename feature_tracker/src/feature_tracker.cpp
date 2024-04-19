@@ -265,7 +265,9 @@ bool FeatureTracker::updateID(unsigned int i){
             return true;
         }
     }
-    else return false;
+    else{ 
+        return false;
+    }
 }
 
 /**

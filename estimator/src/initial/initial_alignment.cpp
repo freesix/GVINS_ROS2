@@ -23,7 +23,7 @@ void solveGyroscopeBias(std::map<double, ImageFrame> &all_image_frame, Eigen::Ve
         b += tmp_A.transpose() * tmp_b;
     }
     delta_bg = A.ldlt().solve(b); 
-    RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "gyroscope bias initial calibration " << delta_bg.transpose());
+    RCLCPP_WARN_STREAM(rclcpp::get_logger("rclcpp"), "gyroscope bias initial calibration " << delta_bg.transpose());
 
     for(int i=0; i<=WINDOW_SIZE; i++){
         Bgs[i] += delta_bg;
@@ -180,7 +180,7 @@ bool LinearAlignment(std::map<double, ImageFrame> &all_image_frame, Eigen::Vecto
     double s = x(n_state - 1) / 100.0;
     RCUTILS_LOG_DEBUG("estimated scale: %f", s);
     g = x.segment<3>(n_state - 4);
-    RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), " result g " << g.norm() << " " << g.transpose());
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("rclcpp"), " result g " << g.norm() << " " << g.transpose());
     if(fabs(g.norm() - G.norm()) > 1.0 || s < 0)
     {
         return false;
@@ -189,7 +189,7 @@ bool LinearAlignment(std::map<double, ImageFrame> &all_image_frame, Eigen::Vecto
     RefineGravity(all_image_frame, g, x);
     s = (x.tail<1>())(0) / 100.0;
     (x.tail<1>())(0) = s;
-    RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), " refine     " << g.norm() << " " << g.transpose());
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("rclcpp"), " refine     " << g.norm() << " " << g.transpose());
     if(s < 0.0){
         return false;  
     } 

@@ -28,13 +28,12 @@ bool init_pub = 0;
 void img_callback(const sensor_msgs::msg::Image::SharedPtr img_msg){
     if(first_image_flag){
         first_image_flag = false;
-        first_image_time = img_msg->header.stamp.sec + img_msg->header.stamp.nanosec * 1e-9;
-        last_image_time = img_msg->header.stamp.sec + img_msg->header.stamp.nanosec * 1e-9;
+        first_image_time = stamp2Sec(img_msg->header.stamp);
+        last_image_time = stamp2Sec(img_msg->header.stamp);
         return;
     }
 
-
-    if(img_msg->header.stamp.sec - last_image_time > 1.0 || img_msg->header.stamp.sec < last_image_time){
+    if(stamp2Sec(img_msg->header.stamp) - last_image_time > 1.0 || stamp2Sec(img_msg->header.stamp) < last_image_time){
         RCLCPP_WARN(rclcpp::get_logger("feature_tracker"), "image discontinue! reset the feature tracker.");
         first_image_flag = true;
         last_image_time = 0;

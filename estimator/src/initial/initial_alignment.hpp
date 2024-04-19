@@ -4,7 +4,7 @@
 #include "../utility/utility.hpp"
 #include "../feature_manager.hpp"
 /**
- * @brief 图像帧队形，保存了当前帧的特征点，当前帧位姿R和t，时间戳，预积分，是否关键帧
+ * @brief 图像帧对象，保存了当前帧的特征点，当前帧位姿R和t，时间戳，预积分，是否关键帧
 */
 class ImageFrame{
 public:

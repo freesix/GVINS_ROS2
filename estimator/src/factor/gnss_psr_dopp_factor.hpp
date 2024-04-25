@@ -5,12 +5,12 @@
 #include <Eigen/Dense>
 #include <ceres/ceres.h>
 
-#include <gnns_comm/gnss_constant.hpp>
-#include <gnns_comm/gnss_utility.hpp>
+#include <gnss_comm/gnss_constant.hpp>
+#include <gnss_comm/gnss_utility.hpp>
 
 #define PSR_TO_DOPP_RATIO                   5
 
-using namespace gnns_comm::msg;
+using namespace gnss_comm;
 
 /* 
 **  parameters[0]: position and orientation at time k

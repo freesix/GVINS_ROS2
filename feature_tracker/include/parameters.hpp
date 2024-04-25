@@ -22,4 +22,4 @@ extern int EQUALIZE; // 图像是否均衡化
 extern int FISHEYE;
 extern bool PUB_THIS_FRAME;
 
-void readParameters(rclcpp::Node::SharedPtr &n);
+void readParameters(rclcpp::Node::SharedPtr n);

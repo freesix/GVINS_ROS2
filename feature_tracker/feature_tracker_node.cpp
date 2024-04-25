@@ -43,14 +43,14 @@ void img_callback(const sensor_msgs::msg::Image::SharedPtr img_msg){
         pub_restart->publish(restart_flag); // 发布restart_flag消息
         return; 
     }
-    last_image_time = img_msg->header.stamp.sec + img_msg->header.stamp.nanosec * 1e-9;
+    last_image_time = stamp2Sec(img_msg->header.stamp);
     
     // 频率控制
-    if(round(1.0 * pub_count / (img_msg->header.stamp.sec + img_msg->header.stamp.nanosec * 1e-9 - first_image_time)) <= FREQ){
+    if(round(1.0 * pub_count / (stamp2Sec(img_msg->header.stamp) - first_image_time)) <= FREQ){
         PUB_THIS_FRAME = true;
         // reset the frequency control 
-        if(abs(1.0 * pub_count / (img_msg->header.stamp.sec + img_msg->header.stamp.nanosec * 1e-9 - first_image_time) - FREQ) < 0.01 * FREQ){
-            first_image_time = img_msg->header.stamp.sec + img_msg->header.stamp.nanosec * 1e-9;
+        if(abs(1.0 * pub_count / (stamp2Sec(img_msg->header.stamp) - first_image_time) - FREQ) < 0.01 * FREQ){
+            first_image_time = stamp2Sec(img_msg->header.stamp);
             pub_count = 0;
         }
     }   
@@ -79,7 +79,7 @@ void img_callback(const sensor_msgs::msg::Image::SharedPtr img_msg){
     for(int i=0; i<NUM_OF_CAM; i++){
         RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "processing camera %d", i);
         if(i != 1 || !STEREO_TRACK){
-            trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i+1)), img_msg->header.stamp.sec + img_msg->header.stamp.nanosec * 1e-9);
+            trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i+1)), stamp2Sec(img_msg->header.stamp));
         }
         else{
             if(EQUALIZE){
@@ -147,7 +147,7 @@ void img_callback(const sensor_msgs::msg::Image::SharedPtr img_msg){
         feature_points->channels.push_back(velocity_x_of_point);
         feature_points->channels.push_back(velocity_y_of_point);
         RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "publish %f, at %f", 
-                feature_points->header.stamp.sec + feature_points->header.stamp.nanosec * 1e-9,
+                stamp2Sec(feature_points->header.stamp),
                 rclcpp::Clock().now().seconds());
         // 跳过第一帧
         if(!init_pub){

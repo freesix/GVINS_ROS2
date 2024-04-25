@@ -41,22 +41,24 @@ double GNSS_DDT_WEIGHT;
 std::string GNSS_RESULT_PATH;
 
 template <typename T>
-T readParam(rclcpp::Node &n, std::string name)
+T readParam(rclcpp::Node::SharedPtr n, std::string name)
 {
     T ans;
-    if (n.get_parameter(name, ans))
+    n->declare_parameter(name, ""); // 声明变量
+    if (n->get_parameter(name, ans))
     {
         RCLCPP_INFO_STREAM(rclcpp::get_logger("estimator param"), "Loaded " << name << ": " << ans);
     }
     else
     {
         RCLCPP_ERROR_STREAM(rclcpp::get_logger("estmeter param"), "Failed to load " << name);
-        n.shutdown();
+        // n.shutdown();
+        // rclcpp::shutdown();
     }
     return ans;
 }
 
-void readParameters(rclcpp::Node &n)
+void readParameters(rclcpp::Node::SharedPtr n)
 {
     std::string config_file;
     config_file = readParam<std::string>(n, "config_file");

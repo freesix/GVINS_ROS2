@@ -6,7 +6,7 @@
 #include "integration_base.hpp"
 #include <ceres/ceres.h>
 
-class IMUFactor : public ceres::SizedCostFunction<15, 7, 3, 7, 3>{
+class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>{
 public:
     IMUFactor() = delete;
     IMUFactor(IntegrationBase* _pre_integration) : pre_integration(_pre_integration){}
@@ -14,7 +14,7 @@ public:
     /**
      * @brief 计算所有状态变量构成的残差和雅可比矩阵
     */
-    virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians){
+    virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians)const{
         Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
         Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
         Eigen::Vector3d Vi(parameters[1][0], parameters[1][1], parameters[1][2]);

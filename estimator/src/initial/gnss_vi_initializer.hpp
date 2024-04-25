@@ -3,12 +3,12 @@
 #include <vector>
 #include <eigen3/Eigen/Dense>
 
-#include <gnns_comm/gnss_utility.hpp>
-#include <gnns_comm/gnss_spp.hpp>
+#include <gnss_comm/gnss_utility.hpp>
+#include <gnss_comm/gnss_spp.hpp>
 
 #include "../feature_manager.hpp"
 
-using namespace gnns_comm::msg;
+using namespace gnss_comm;
 
 class GNSSVIInitializer
 {

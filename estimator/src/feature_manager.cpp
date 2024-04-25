@@ -55,7 +55,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const std::map<int
     last_track_num = 0; // 被跟踪点的个数
     // 把当前帧图像特征点加入feature容器中，feature按照特征点id组织数据，对于每个id的特征点
     // 记录它被滑动窗口中哪些帧观测到
-    for(auto &id_pts : image){ // 便利每个特征点
+    for(auto &id_pts : image){ // 遍历每个特征点
         FeaturePerFrame f_per_fra(id_pts.second[0].second, td); // 每一帧的属性
 
         int feature_id = id_pts.first;

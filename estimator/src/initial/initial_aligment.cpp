@@ -1,4 +1,4 @@
-#include "initial_alignment.hpp"
+#include "initial_aligment.hpp"
 /**
  * @brief 更新得到新的陀螺仪漂移，并用新漂移重新积分
 */

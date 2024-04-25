@@ -20,9 +20,9 @@ int FISHEYE;
 bool PUB_THIS_FRAME;
 
 template<typename T>
-T readParam(rclcpp::Node::SharedPtr &n, std::string name){
-    std::cout<<n.get()<<std::endl;
+T readParam(rclcpp::Node::SharedPtr n, std::string name){
     T ans;
+    n->declare_parameter(name, "");
     if(n->get_parameter(name, ans)){
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Loaded %s", name.c_str());  
     }
@@ -34,12 +34,12 @@ T readParam(rclcpp::Node::SharedPtr &n, std::string name){
 
 
 
-void readParameters(rclcpp::Node::SharedPtr &n)
+void readParameters(rclcpp::Node::SharedPtr n)
 {
     std::string config_file;
-    config_file = "/home/freesix/GVINS_ROS2_WS/src/GVINS/config/visensor_f9p/visensor_left_f9p_config.yaml";
+    // config_file = "/home/freesix/GVINS_ROS2_WS/src/GVINS/config/visensor_f9p/visensor_left_f9p_config.yaml";
     // n->get_parameter("config_file", config_file);
-    // config_file = readParam<std::string>(n, "config_file");
+    config_file = readParam<std::string>(n, "config_file");
     std::cout<<"config_file: "<<config_file<<std::endl;
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())

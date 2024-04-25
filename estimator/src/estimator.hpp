@@ -9,7 +9,7 @@
 #include "initial/initial_sfm.hpp"
 #include "initial/initial_ex_rotation.hpp"
 #include "initial/gnss_vi_initializer.hpp"
-#include "initial/initial_alignment.hpp"
+#include "initial/initial_aligment.hpp"
 #include <std_msgs/msg/header.hpp>
 
 #include <ceres/ceres.h>
@@ -26,11 +26,11 @@
 #include "factor/pose_anchor_factor.hpp"
 
 #include <opencv2/opencv.hpp>
-#include <gnns_comm/gnss_utility.hpp>
-#include <gnns_comm/gnss_ros.hpp>
-#include <gnns_comm/gnss_spp.hpp>
+#include <gnss_comm/gnss_utility.hpp>
+#include <gnss_comm/gnss_ros.hpp>
+#include <gnss_comm/gnss_spp.hpp>
 
-using namespace gnns_comm::msg;
+using namespace gnss_comm;
 
 class Estimator{
 public:

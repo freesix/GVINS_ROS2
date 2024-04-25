@@ -55,11 +55,11 @@ extern uint32_t GNSS_TRACK_NUM_THRES;
 extern double GNSS_DDT_WEIGHT;
 extern std::string GNSS_RESULT_PATH;
 
-void readParameters(rclcpp::Node &n);
+void readParameters(rclcpp::Node::SharedPtr n);
 
 enum SIZE_PARAMETERIZATION
 {
-    SIZE_POSE = 7, // 位姿，旋转用四元数，so7
+    SIZE_POSE = 7, // 位姿，旋转用四元数，因此为7
     SIZE_SPEEDBIAS = 9, // 速度和偏置
     SIZE_FEATURE = 1 // 特征点逆深度
 };

@@ -10,8 +10,8 @@ output_dir: "~/output/"
 #camera calibration 
 model_type: MEI
 camera_name: camera
-image_width: 752
-image_height: 480
+image_width: 1224
+image_height: 370
 mirror_parameters:
    xi: 1.8476540167437447
 distortion_parameters:

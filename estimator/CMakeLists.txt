@@ -18,6 +18,7 @@ find_package(cv_bridge REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(gnss_comm REQUIRED)
 find_package(gnss_interfaces REQUIRED)
+find_package(estimator_interfaces REQUIRED)
 
 find_package(OpenCV REQUIRED)
 find_package(Ceres REQUIRED)
@@ -32,9 +33,6 @@ include_directories(${CERES_INCLUDE_DIRS})
 # gnns_comm includes
 include_directories("../gnss_comm/include")
 
-rosidl_generate_interfaces(${PROJECT_NAME}_interface
-    "msg/LocalSensorExternalTrigger.msg"
-    DEPENDENCIES std_msgs)
 
 
 add_library(${PROJECT_NAME}_lib
@@ -62,19 +60,18 @@ add_library(${PROJECT_NAME}_lib
     src/initial/gnss_vi_initializer.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}_lib rclcpp rcpputils std_msgs sensor_msgs rosidl_default_generators
-    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm gnss_interfaces)
-rosidl_get_typesupport_target(cpp_typesupport ${PROJECT_NAME}_interface "rosidl_typesupport_cpp")
-target_link_libraries(${PROJECT_NAME}_lib ${OpenCV_LIBS} ${CERES_LIBRARIES} ${EIGEN3_LIBS} "${cpp_typesupport}")
+    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm gnss_interfaces estimator_interfaces)
+target_link_libraries(${PROJECT_NAME}_lib ${OpenCV_LIBS} ${CERES_LIBRARIES} ${EIGEN3_LIBS})
 
 add_executable(estimator_node src/estimator_node.cpp)
 ament_target_dependencies(${PROJECT_NAME}_lib rclcpp rcpputils std_msgs sensor_msgs rosidl_default_generators
-    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm)
-rosidl_get_typesupport_target(cpp_typesupport ${PROJECT_NAME}_interface "rosidl_typesupport_cpp")
-target_link_libraries(estimator_node ${PROJECT_NAME}_lib "${cpp_typesupport}")
+    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm gnss_interfaces estimator_interfaces)
+target_link_libraries(estimator_node ${PROJECT_NAME}_lib)
 
 
 ament_export_include_directories(include)
-
+ament_export_dependencies(rosidl_default_runtime)
+ament_export_dependencies(estimator_interfaces)
 
 install(TARGETS 
     estimator_node

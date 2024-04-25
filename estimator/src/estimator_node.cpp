@@ -10,7 +10,7 @@
 #include <opencv2/opencv.hpp>
 #include <gnss_comm/gnss_ros.hpp>
 #include <gnss_comm/gnss_utility.hpp>
-#include <gvins/msg/local_sensor_external_trigger.hpp>
+#include <estimator_interfaces/msg/local_sensor_external_trigger.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 
 #include "estimator.hpp"
@@ -238,7 +238,8 @@ void gnss_meas_callback(const gnss_interfaces::msg::GnssMeasMsg::SharedPtr meas_
 }
 
 void feature_callback(const sensor_msgs::msg::PointCloud::SharedPtr feature_msg)
-{
+{   
+    RCUTILS_LOG_DEBUG("I coming feature_callback");
     ++ feature_msg_counter;
 
     if (skip_parameter < 0 && time_diff_valid)
@@ -264,7 +265,7 @@ void feature_callback(const sensor_msgs::msg::PointCloud::SharedPtr feature_msg)
     }
 }
 
-void local_trigger_info_callback(const gvins::msg::LocalSensorExternalTrigger::SharedPtr trigger_msg)
+void local_trigger_info_callback(const estimator_interfaces::msg::LocalSensorExternalTrigger::SharedPtr trigger_msg)
 {
     std::lock_guard<std::mutex> lg(m_time);
 
@@ -438,7 +439,6 @@ int main(int argc, char** argv){
 #ifdef EIGEN_DONT_PARALLELIZE
     RCUTILS_LOG_DEBUG("EIGEN_DONT_PARALLELIZE");
 #endif
-
     registerPub(n);
 
     next_pulse_time_valid = false;
@@ -453,21 +453,21 @@ int main(int argc, char** argv){
     else{
         skip_parameter = 0;
     }
-
     auto sub_imu = n->create_subscription<sensor_msgs::msg::Imu>(IMU_TOPIC, 
         rclcpp::QoS(rclcpp::KeepLast(2000)), imu_callback);
     
-    auto sub_feature = n->create_subscription<sensor_msgs::msg::PointCloud>("gvins_feature_tracker/feature",
+    auto sub_feature = n->create_subscription<sensor_msgs::msg::PointCloud>("feature",
         rclcpp::QoS(rclcpp::KeepLast(2000)), feature_callback);
 
-    auto sub_restart = n->create_subscription<std_msgs::msg::Bool>("gvins_feature_tracker/restart",
+    auto sub_restart = n->create_subscription<std_msgs::msg::Bool>("restart",
         rclcpp::QoS(rclcpp::KeepLast(2000)), restart_callback);
     rclcpp::Subscription<gnss_interfaces::msg::GnssEphemMsg>::SharedPtr sub_ephem;
     rclcpp::Subscription<gnss_interfaces::msg::GnssGloEphemMsg>::SharedPtr sub_glo_ephem;
     rclcpp::Subscription<gnss_interfaces::msg::GnssMeasMsg>::SharedPtr sub_gnss_meas;
     rclcpp::Subscription<gnss_interfaces::msg::StampedFloat64Array>::SharedPtr sub_gnss_iono_params;
     rclcpp::Subscription<gnss_interfaces::msg::GnssTimePulseInfoMsg>::SharedPtr sub_gnss_time_pluse_info;
-    rclcpp::Subscription<gvins::msg::LocalSensorExternalTrigger>::SharedPtr sub_local_trigger_info;
+    rclcpp::Subscription<estimator_interfaces::msg::LocalSensorExternalTrigger>::SharedPtr sub_local_trigger_info;
+    
     if(GNSS_ENABLE){
         sub_ephem = n->create_subscription<gnss_interfaces::msg::GnssEphemMsg>(GNSS_EPHEM_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)), gnss_ephem_callback);
         sub_glo_ephem = n->create_subscription<gnss_interfaces::msg::GnssGloEphemMsg>(GNSS_GLO_EPHEM_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)),
@@ -477,21 +477,22 @@ int main(int argc, char** argv){
         sub_gnss_iono_params = n->create_subscription<gnss_interfaces::msg::StampedFloat64Array>(GNSS_IONO_PARAMS_TOPIC,
             rclcpp::QoS(rclcpp::KeepLast(100)), gnss_iono_params_callback);
         
-        if(GNSS_LOCAL_ONLINE_SYNC){
+        if(GNSS_LOCAL_ONLINE_SYNC){    
             sub_gnss_time_pluse_info = n->create_subscription<gnss_interfaces::msg::GnssTimePulseInfoMsg>(GNSS_TP_INFO_TOPIC,
                 rclcpp::QoS(rclcpp::KeepLast(100)), gnss_tp_info_callback);
-            sub_local_trigger_info = n->create_subscription<gvins::msg::LocalSensorExternalTrigger>(
+                
+            sub_local_trigger_info = n->create_subscription<estimator_interfaces::msg::LocalSensorExternalTrigger>(
                 LOCAL_TRIGGER_INFO_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)), local_trigger_info_callback);
         }
-        else{
+        else{ 
             time_diff_gnss_local = GNSS_LOCAL_TIME_DIFF;
             estimator_ptr->inputGNSSTimeDiff(time_diff_gnss_local);
             time_diff_valid = true;
-        }
+        } 
     }
-
     std::thread measurement_process{process};
     rclcpp::spin(n);
+    rclcpp::shutdown();
 
     return 0;
 }

@@ -22,6 +22,7 @@
   <depend>tf2_ros</depend>
   <depend>cv_bridge</depend>
   <depend>camera_models</depend>
+  <depend>estimator_interfaces</depend>
   <depend>image_transport</depend>
 
   <test_depend>ament_lint_auto</test_depend>

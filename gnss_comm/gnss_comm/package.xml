@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package format="2">
+  <name>gnss_comm</name>
+  <version>1.0.0</version>
+  <description>Definitions and utility functions for GNSS</description>
+
+  <maintainer email="shaozu.cao@gmail.com">CAO Shaozu</maintainer>
+
+  <license>GPLv3</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  
+  <depend>rclcpp</depend>
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>gnss_interfaces</depend>
+  
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+</package>

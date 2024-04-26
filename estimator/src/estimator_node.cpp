@@ -115,13 +115,16 @@ void update()
         predict(tmp_imu_buf.front());
     }
 }
-
+/**
+ * @brief 根据时间戳检查传感器输入数据的合法性
+*/
 bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_msg, 
     std::shared_ptr<sensor_msgs::msg::PointCloud> &img_msg, std::vector<ObsPtr> &gnss_msg)
-{
+{   
+    // 当imu、feature、gnss数据有一个为空直接返回false
     if (imu_buf.empty() || feature_buf.empty() || (GNSS_ENABLE && gnss_meas_buf.empty()))
         return false;
-    
+    // 将imu和图像的时间戳尽量对齐，front_feature_ts指feature_buf中的第一帧图像时间
     double front_feature_ts = stamp2Sec(feature_buf.front()->header.stamp);
 
     if (!stamp2Sec(imu_buf.back()->header.stamp) > front_feature_ts)
@@ -130,6 +133,7 @@ bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_ms
         sum_of_wait++;
         return false;
     }
+    // feature缓存不为空，且imu时间大于feature时间，要丢弃部分图像帧数据
     double front_imu_ts =stamp2Sec(imu_buf.front()->header.stamp);
     while (!feature_buf.empty() && front_imu_ts > front_feature_ts)
     {
@@ -137,12 +141,13 @@ bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_ms
         feature_buf.pop();
         front_feature_ts = stamp2Sec(feature_buf.front()->header.stamp);
     }
-
+    // 大致将gnss数据和图像数据对齐，实现三者之间的对齐
     if (GNSS_ENABLE)
     {
-        front_feature_ts += time_diff_gnss_local;
+        front_feature_ts += time_diff_gnss_local; // gnss时间和local本地时间偏差
         double front_gnss_ts = time2sec(gnss_meas_buf.front()[0]->time);
-        while (!gnss_meas_buf.empty() && front_gnss_ts < front_feature_ts-MAX_GNSS_CAMERA_DELAY)
+        // gnss不为空，但时间小于图像帧，需要丢弃一部分
+        while (!gnss_meas_buf.empty() && front_gnss_ts < front_feature_ts-MAX_GNSS_CAMERA_DELAY) 
         {
             RCUTILS_LOG_WARN("throw gnss, only should happen at the beginning");
             gnss_meas_buf.pop();
@@ -163,7 +168,7 @@ bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_ms
 
     img_msg = feature_buf.front();
     feature_buf.pop();
-
+    // 将早于当前帧图像晚于前一帧图像之间的imu和晚于当前图像的第一帧imu加入imu_msg和当前图像对齐(多帧imu对一帧图像)
     while (stamp2Sec(imu_buf.front()->header.stamp) < stamp2Sec(img_msg->header.stamp) + estimator_ptr->td)
     {
         imu_msg.emplace_back(imu_buf.front());
@@ -187,7 +192,7 @@ void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
     m_buf.lock();
     imu_buf.push(imu_msg);
     m_buf.unlock();
-    con.notify_one();
+    con.notify_one(); // 唤醒getMeasurements()
 
     last_imu_t = stamp2Sec(imu_msg->header.stamp);
 
@@ -196,8 +201,9 @@ void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
         predict(imu_msg);
         std_msgs::msg::Header header = imu_msg->header;
         header.frame_id = "world";
-        if (estimator_ptr->solver_flag == Estimator::SolverFlag::NON_LINEAR)
-            pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header);
+        // 初始化完成，处于滑动窗口非线性优化状态，如果不处于则不发布里程计信息
+        if (estimator_ptr->solver_flag == Estimator::SolverFlag::NON_LINEAR) 
+            pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header); // 发布频率很高，和imu数据同频
     }
 }
 
@@ -212,7 +218,11 @@ void gnss_glo_ephem_callback(const gnss_interfaces::msg::GnssGloEphemMsg::Shared
     GloEphemPtr glo_ephem = msg2glo_ephem(glo_ephem_msg);
     estimator_ptr->inputEphem(glo_ephem);
 }
-
+/**
+ * @brief 电离层参数订阅
+ * @details 考虑电离层和对流层对gnss传播的影响，后面会加上卫星仰角参数进行建模，因为仰角小
+ * 的卫星在电离层中传播的时间较长，对定位影响大
+*/
 void gnss_iono_params_callback(const gnss_interfaces::msg::StampedFloat64Array::SharedPtr iono_msg)
 {
     double ts = stamp2Sec(iono_msg->header.stamp);
@@ -264,7 +274,11 @@ void feature_callback(const sensor_msgs::msg::PointCloud::SharedPtr feature_msg)
         con.notify_one();
     }
 }
-
+/**
+ * @brief 获得local和gnss的时间差
+ * @details trigger_msg记录的是相机被gnss触发的时间，可以理解为图像命名的时间，和gnss时间
+ * 有差别，因为硬件存在延迟等。因此后面对这个时间进行矫正(当然这是在作者那个硬件系统中)
+*/
 void local_trigger_info_callback(const estimator_interfaces::msg::LocalSensorExternalTrigger::SharedPtr trigger_msg)
 {
     std::lock_guard<std::mutex> lg(m_time);
@@ -321,7 +335,9 @@ void restart_callback(const std_msgs::msg::Bool::SharedPtr restart_msg)
     }
     return;
 }
-
+/**
+ * @brief 这是measurement线程的线程函数，用于处理后端部分，包括imu预积分、耦合初始化和local BA
+*/
 void process()
 {
     while (true)

@@ -49,10 +49,10 @@ bool init_imu = 1;
 double last_imu_t = -1;
 
 std::mutex m_time;
-double next_pulse_time;
-bool next_pulse_time_valid;
-double time_diff_gnss_local;
-bool time_diff_valid;
+double next_pulse_time; // pps触发时间
+bool next_pulse_time_valid; // 如果进入pps触发的回调函数，这个为true
+double time_diff_gnss_local; // pps触发时间和vi传感器实际被触发时间之间的差值
+bool time_diff_valid; // 为false则对于收到的gnss数据不会存储
 double latest_gnss_time;
 double tmp_last_feature_time;
 uint64_t feature_msg_counter;
@@ -295,8 +295,9 @@ void local_trigger_info_callback(const estimator_interfaces::msg::LocalSensorExt
 }
 
 void gnss_tp_info_callback(const gnss_interfaces::msg::GnssTimePulseInfoMsg::SharedPtr tp_msg)
-{
+{   // 先把gnss时间转化为gtime_t数据结构
     gtime_t tp_time = gpst2time(tp_msg->time.week, tp_msg->time.tow);
+    // 根据不同卫星再进一步处理时间
     if (tp_msg->utc_based || tp_msg->time_sys == SYS_GLO)
         tp_time = utc2gpst(tp_time);
     else if (tp_msg->time_sys == SYS_GAL)
@@ -311,7 +312,7 @@ void gnss_tp_info_callback(const gnss_interfaces::msg::GnssTimePulseInfoMsg::Sha
     double gnss_ts = time2sec(tp_time);
 
     std::lock_guard<std::mutex> lg(m_time);
-    next_pulse_time = gnss_ts;
+    next_pulse_time = gnss_ts; // 记录pps触发时间
     next_pulse_time_valid = true;
 }
 
@@ -347,19 +348,24 @@ void process()
         std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> imu_msg;
         std::shared_ptr<sensor_msgs::msg::PointCloud> img_msg;
         std::vector<ObsPtr> gnss_msg;
-
+        // unique_lock对象lk独占所有权的方式管理mutex对象m_buf的上锁和解锁
         std::unique_lock<std::mutex> lk(m_buf);
+
+        // 先调用匿名函数，从缓存队列中读取数据，如果measurements为空，则匿名函数返回false，调用wait(lock)，
+        // 释放m_buf（为了使图像和IMU回调函数可以访问缓存队列），阻塞当前线程，等待被con.notify_one()唤醒
+        // 直到measurements不为空时（成功从缓存队列获取数据），匿名函数返回true，则可以退出while循环。
         con.wait(lk, [&]
                  {
                     return getMeasurements(imu_msg, img_msg, gnss_msg);
                  });
         lk.unlock();
-        m_estimator.lock();
+        m_estimator.lock(); 
         double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0;
+        // 遍历改组imu_msg中的各帧imu数据进行预积分
         for (auto &imu_data : imu_msg)
         {
             double t = stamp2Sec(imu_data->header.stamp);
-            double img_t = stamp2Sec(img_msg->header.stamp) + estimator_ptr->td;
+            double img_t = stamp2Sec(img_msg->header.stamp) + estimator_ptr->td; // 图像特征点的时间戳，补偿了一个通过优化得到的时间偏移
             if (t <= img_t)
             { 
                 if (current_time < 0)
@@ -377,7 +383,7 @@ void process()
                 //printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
 
             }
-            else
+            else // 针对最后一个imu数据做简单的线性插值
             {
                 double dt_1 = img_t - current_time;
                 double dt_2 = t - img_t;
@@ -397,12 +403,12 @@ void process()
                 //printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
             }
         }
-
+        // 处理观测数据和星历数据，放进estimator中，在处理过程中会对gnss数据进行过滤
         if (GNSS_ENABLE && !gnss_msg.empty())
             estimator_ptr->processGNSS(gnss_msg);
 
         RCUTILS_LOG_DEBUG("processing vision data with stamp %f \n", stamp2Sec(img_msg->header.stamp));
-
+        // 对前端特征点信息处理记录并送入porcessImage
         TicToc t_s;
         std::map<int, std::vector<std::pair<int, Eigen::Matrix<double, 7, 1>>>> image;
         for (unsigned int i = 0; i < img_msg->points.size(); i++)

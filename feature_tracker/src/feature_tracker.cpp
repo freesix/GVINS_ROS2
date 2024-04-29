@@ -178,6 +178,9 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time){
             }
             if(mask.size() != forw_img.size()){
                 std::cout<<"mask size wrong"<<std::endl;
+                // for debug
+                std::cout<<"mask size:"<<mask.size()<<std::endl;
+                std::cout<<"forw_img size:"<<forw_img.size()<<std::endl;
             }
             /** 
              *void cv::goodFeaturesToTrack(    在mask中不为0的区域检测新的特征点

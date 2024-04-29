@@ -20,6 +20,7 @@ void Estimator::setParameter(){
 }
 
 void Estimator::clearState(){
+    // 清空滑动窗口中的状态量
     for(int i=0; i<WINDOW_SIZE+1; i++){
         Rs[i].setIdentity();
         Ps[i].setZero();
@@ -35,7 +36,7 @@ void Estimator::clearState(){
         }
         pre_integrations[i] = nullptr;
     }
-
+    // 清空外参
     for(int i=0; i<NUM_OF_CAM; i++){
         tic[i] = Eigen::Vector3d::Zero();
         ric[i] = Eigen::Matrix3d::Identity();
@@ -231,11 +232,11 @@ void Estimator::processImage(const std::map<int, std::vector<std::pair<int,
  * @brief 星历信息的输入
 */
 void Estimator::inputEphem(EphemBasePtr ephem_ptr){
-    double toe = time2sec(ephem_ptr->toe);
+    double toe = time2sec(ephem_ptr->toe); 
     // if a new ephemeris comes
     if(sat2time_index.count(ephem_ptr->sat) == 0 || sat2time_index.at(ephem_ptr->sat).count(toe) == 0){
-        sat2ephem[ephem_ptr->sat].emplace_back(ephem_ptr);
-        sat2time_index[ephem_ptr->sat].emplace(toe, sat2ephem.at(ephem_ptr->sat).size()-1);
+        sat2ephem[ephem_ptr->sat].emplace_back(ephem_ptr); // <卫星编号，数据>
+        sat2time_index[ephem_ptr->sat].emplace(toe, sat2ephem.at(ephem_ptr->sat).size()-1); // <卫星编号，卫星时间，数据个数>
     }
 }
 
@@ -260,7 +261,7 @@ void Estimator::processGNSS(const std::vector<ObsPtr> &gnss_meas){
     // 遍历
     for(auto obs : gnss_meas){
         // filter according to system
-        uint32_t sys = satsys(obs->sat, NULL);
+        uint32_t sys = satsys(obs->sat, NULL); // 根据obs-sat获取卫星系统
         if(sys != SYS_GPS && sys != SYS_GLO && sys != SYS_GAL && sys != SYS_BDS){
             continue;
         }

@@ -111,17 +111,17 @@ public:
     Eigen::Matrix3d R_ecef_enu;
     double yaw_enu_local;
     std::vector<ObsPtr> gnss_meas_buf[(WINDOW_SIZE+1)];
-    std::vector<EphemBasePtr> gnss_ephem_buf[(WINDOW_SIZE+1)];
-    std::vector<double> latest_gnss_iono_params;
-    std::map<uint32_t, std::vector<EphemBasePtr>> sat2ephem;
-    std::map<uint32_t, std::map<double, size_t>> sat2time_index;
+    std::vector<EphemBasePtr> gnss_ephem_buf[(WINDOW_SIZE+1)]; // 过滤之后的星历信息
+    std::vector<double> latest_gnss_iono_params; // 电离层参数
+    std::map<uint32_t, std::vector<EphemBasePtr>> sat2ephem; // <卫星编号，星历信息>
+    std::map<uint32_t, std::map<double, size_t>> sat2time_index; // <卫星编号，卫星时间，这个卫星的所有观测个数
     std::map<uint32_t, uint32_t> sat_track_status;
-    double para_anc_ecef[3];
-    double para_yaw_enu_local[1];
-    double para_rcv_dt[(WINDOW_SIZE+1)*4];
-    double para_rcv_ddt[WINDOW_SIZE+1];
+    double para_anc_ecef[3]; // ecef锚点的平移
+    double para_yaw_enu_local[1]; // yaw角度
+    double para_rcv_dt[(WINDOW_SIZE+1)*4]; // 接收机的钟差
+    double para_rcv_ddt[WINDOW_SIZE+1]; // 接收机的钟差漂移，只和接收机有关，因此四个系统公用一个
     // GNSS statistics
-    double diff_t_gnss_local;
+    double diff_t_gnss_local; // pps触发时间和实际vi传感器被触发时间之间的差值
     Eigen::Matrix3d R_enu_local;
     Eigen::Vector3d ecef_pos, enu_pos, enu_vel, enu_ypr;
 

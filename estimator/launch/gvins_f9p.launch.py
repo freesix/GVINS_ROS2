@@ -6,7 +6,7 @@ from launch.substitutions import LaunchConfiguration, Command
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    log_level = 'debug'
+    log_level = 'info'
 
     share_dir = get_package_share_directory('gvins')
     return LaunchDescription([

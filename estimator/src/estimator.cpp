@@ -135,6 +135,7 @@ void Estimator::processImage(const std::map<int, std::vector<std::pair<int,
     Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::msg::Header &header){
     RCUTILS_LOG_DEBUG("new image coming -----------------------------------");
     RCUTILS_LOG_DEBUG("Adding feature points %lu", image.size());
+    // 根据当前帧和前面帧的视差计算判断边缘化老帧还是次新帧
     if(f_manager.addFeatureCheckParallax(frame_count, image, td)){
         marginalization_flag = MARGIN_OLD;
     } 
@@ -148,11 +149,11 @@ void Estimator::processImage(const std::map<int, std::vector<std::pair<int,
     RCUTILS_LOG_DEBUG("number of feature: %d", f_manager.getFeatureCount());
     Headers[frame_count] = header;
 
-    ImageFrame imageframe(image, stamp2Sec(header.stamp));
-    imageframe.per_integration = tmp_pre_integration;
-    all_image_frame.insert(std::make_pair(stamp2Sec(header.stamp), imageframe));
+    ImageFrame imageframe(image, stamp2Sec(header.stamp)); // 建立图像帧管理对象
+    imageframe.per_integration = tmp_pre_integration; // 图像帧的预积分成员
+    all_image_frame.insert(std::make_pair(stamp2Sec(header.stamp), imageframe)); // 包含预积分对象的图像帧插入管理所有图像帧的pair
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
-
+    // 相机与IMU外参的在线标定
     if(ESTIMATE_EXTRINSIC == 2){
         RCUTILS_LOG_INFO("calibrating extrinsic param, rotation movement is needed");
         if(frame_count != 0){
@@ -175,7 +176,8 @@ void Estimator::processImage(const std::map<int, std::vector<std::pair<int,
     if(solver_flag == INITIAL){ // 需要进行初始化
         if(frame_count == WINDOW_SIZE){ // 滑动窗口塞满了才进行初始化
             bool result = false;
-            if(ESTIMATE_EXTRINSIC != 2 && (stamp2Sec(header.stamp)-initial_timestamp) > 0.1){ // 在上一次初始化失败后至少0.1秒才进行下一次初始化
+            // 外参已知或已被估计，在上一次初始化失败后至少0.1秒才进行下一次初始化
+            if(ESTIMATE_EXTRINSIC != 2 && (stamp2Sec(header.stamp)-initial_timestamp) > 0.1){ 
                 result = initialStructure();
                 initial_timestamp = stamp2Sec(header.stamp);
             }
@@ -232,7 +234,7 @@ void Estimator::processImage(const std::map<int, std::vector<std::pair<int,
  * @brief 星历信息的输入
 */
 void Estimator::inputEphem(EphemBasePtr ephem_ptr){
-    double toe = time2sec(ephem_ptr->toe); 
+    double toe = time2sec(ephem_ptr->toe);  // 星历参考时间
     // if a new ephemeris comes
     if(sat2time_index.count(ephem_ptr->sat) == 0 || sat2time_index.at(ephem_ptr->sat).count(toe) == 0){
         sat2ephem[ephem_ptr->sat].emplace_back(ephem_ptr); // <卫星编号，数据>
@@ -266,7 +268,7 @@ void Estimator::processGNSS(const std::vector<ObsPtr> &gnss_meas){
             continue;
         }
         // if not got cooresponding ephemeris yet
-        if(sat2ephem.count(obs->sat) == 0){ // 确定观测到的卫星数量
+        if(sat2ephem.count(obs->sat) == 0){ // 对应系统的星历为空
             continue;
         }
         // 如果观测数据中频率值不为空，选择L1频率，并确定相应的观测值和星历信息
@@ -373,6 +375,7 @@ bool Estimator::initialStructure(){
         var = sqrt(var / ((int)all_image_frame.size() - 1));
         if(var < 0.25){
             RCUTILS_LOG_INFO("IMU excitation not enough!");
+            // return false;
         }
     } 
     // global sfm

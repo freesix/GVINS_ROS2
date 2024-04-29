@@ -19,4 +19,4 @@ float64 acc_y
 float64 acc_z
 float64 tau_n
 float64 gamma
-float64 delta_tau_n
+float64 delta_tau_n # 卫星平均运动速率与计算值之差(rad/s)

@@ -43,6 +43,7 @@ int FeatureManager::getFeatureCount(){
  * @brief 当前帧与之前帧进行视差比较，如果当前帧变化小，就会删去倒数第二帧，如果变化很大，就
  * 删去最旧帧，并把这一帧作为新的关键帧，保证滑窗内优化的除最后一帧可能不是关键帧外，其它均为
  * 关键帧。
+ * @return true则为边缘化老帧，反之次新帧。(判断视差是否大于预定值)
 */
 bool FeatureManager::addFeatureCheckParallax(int frame_count, const std::map<int, 
     std::vector<std::pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td){
@@ -82,14 +83,15 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const std::map<int
     }
     // 计算能被当前帧和其前两帧共同看到的特征点的视差
     for(auto &it_per_id : feature){
+        // 该特征点第一次被观察帧要小于次次新帧，结束帧大于等于次新帧
         if(it_per_id.start_frame < frame_count - 2 && it_per_id.start_frame 
             + int(it_per_id.feature_per_frame.size()) - 1 >= frame_count - 1){
-            parallax_num += compensatedParallax2(it_per_id, frame_count);
+            parallax_sum += compensatedParallax2(it_per_id, frame_count);
             parallax_num++;  
         }
     }
 
-    if(parallax_num > 0){
+    if(parallax_num == 0){ // 0表示当前帧和前两帧之间没有共视点，true边缘化老帧
         return true;
     }
     else{
@@ -380,7 +382,7 @@ double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int f
     double u_i = p_i(0) / dep_i;
     double v_i = p_i(1) / dep_i;
     double du = u_i - u_j, dv = v_i - v_j;
-
+    // 这一步和上一步相同
     double dep_i_comp = p_i_comp(2);
     double u_i_comp = p_i_comp(0) / dep_i_comp;
     double v_i_comp = p_i_comp(1) / dep_i_comp;

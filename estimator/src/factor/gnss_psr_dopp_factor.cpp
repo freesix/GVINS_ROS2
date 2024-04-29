@@ -1,23 +1,30 @@
 #include "gnss_psr_dopp_factor.hpp"
-
+/**
+ * @brief 伪距和多普勒频移因子
+ * @param _obs 卫星观测数据
+ * @param _ephem 卫星星历数据
+ * @param _iono_paras 接受到的最新电离层数据
+ * @param _ratio 卫星观测时间在两图像帧时间之间的离最新图像帧的占比
+*/
 GnssPsrDoppFactor::GnssPsrDoppFactor(const ObsPtr &_obs, const EphemBasePtr &_ephem, 
     std::vector<double> &_iono_paras, const double _ratio) 
         : obs(_obs), ephem(_ephem), iono_paras(_iono_paras), ratio(_ratio)
-{
+{   
+    // 判断是否为L1频段观测数据
     freq = L1_freq(obs, &freq_idx);
     LOG_IF(FATAL, freq < 0) << "No L1 observation found.";
 
-    uint32_t sys = satsys(obs->sat, NULL);
-    double tof = obs->psr[freq_idx] / LIGHT_SPEED;
-    gtime_t sv_tx = time_add(obs->time, -tof);
+    uint32_t sys = satsys(obs->sat, NULL); // 卫星系统
+    double tof = obs->psr[freq_idx] / LIGHT_SPEED; // 飞行时间
+    gtime_t sv_tx = time_add(obs->time, -tof); // 观测时间-飞行时间=数据发出时间
 
     if (sys == SYS_GLO)
     {
         GloEphemPtr glo_ephem = std::dynamic_pointer_cast<GloEphem>(ephem);
-        svdt = geph2svdt(sv_tx, glo_ephem);
-        sv_tx = time_add(sv_tx, -svdt);
-        sv_pos = geph2pos(sv_tx, glo_ephem, &svdt);
-        sv_vel = geph2vel(sv_tx, glo_ephem, &svddt);
+        svdt = geph2svdt(sv_tx, glo_ephem); // 根据星历和sv_tx得到钟差
+        sv_tx = time_add(sv_tx, -svdt); // 去除钟差影响得到真实数据发出时间
+        sv_pos = geph2pos(sv_tx, glo_ephem, &svdt); // 根据星历获取卫星位置和钟差
+        sv_vel = geph2vel(sv_tx, glo_ephem, &svddt); // 获取卫星速度和钟差偏置
         tgd = 0.0;
         pr_uura = 2.0 * (obs->psr_std[freq_idx]/0.16);
         dp_uura = 2.0 * (obs->dopp_std[freq_idx]/0.256);

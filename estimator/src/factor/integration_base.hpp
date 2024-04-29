@@ -192,24 +192,25 @@ public:
     }
 
         
+    // 中值积分需要用到前后两个时刻的IMU数据
+    double dt; // 前后两个时刻的时间差
+    Eigen::Vector3d acc_0, gyr_0; // 前一帧IMU数据中的加速度计测量值和陀螺仪测量值
+    Eigen::Vector3d acc_1, gyr_1; // 后一帧
 
-    double dt;
-    Eigen::Vector3d acc_0, gyr_0;
-    Eigen::Vector3d acc_1, gyr_1;
-
-    const Eigen::Vector3d linearized_acc, linearized_gyr;
-    Eigen::Vector3d linearized_ba, linearized_bg;
+    const Eigen::Vector3d linearized_acc, linearized_gyr; // 这一段预积分初始时刻的imu测量值，作为常量一直保存
+    Eigen::Vector3d linearized_ba, linearized_bg; // 这一段预积分对应的加速度计和陀螺仪偏置
 
     Eigen::Matrix<double, 15, 15> jacobian, covariance;
     Eigen::Matrix<double, 15, 15> step_jacobian;
     Eigen::Matrix<double, 15, 18> step_V;
     Eigen::Matrix<double, 18, 18> noise;
 
-    double sum_dt;
-    Eigen::Vector3d delta_p;
-    Eigen::Quaterniond delta_q;
-    Eigen::Vector3d delta_v;
-
+    double sum_dt; // 这一段预积分的总时间间隔
+    Eigen::Vector3d delta_p;  // 当前时刻的本体坐标系下位置
+    Eigen::Quaterniond delta_q; // 当前时刻本体坐标系下旋转
+    Eigen::Vector3d delta_v; // 当前时刻本体坐标系下速度
+    // 该段预积分所使用的imu数据的缓存
+    // 当bias变换豁达时，需要使用这些数据进重新预积分
     std::vector<double> dt_buf;
     std::vector<Eigen::Vector3d> acc_buf;
     std::vector<Eigen::Vector3d> gyr_buf;

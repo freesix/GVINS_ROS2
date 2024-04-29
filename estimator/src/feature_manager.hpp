@@ -39,7 +39,7 @@ class FeaturePerId{
 public:
     const int feature_id; //特征点id
     int start_frame; // 特征点第一次被观测到的帧
-    std::vector<FeaturePerFrame> feature_per_frame;
+    std::vector<FeaturePerFrame> feature_per_frame; // 该特征点在每个观察帧属性的容器
 
     int used_num; // 出现次数 
     bool is_outlier;

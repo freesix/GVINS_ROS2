@@ -280,7 +280,7 @@ void Estimator::processGNSS(const std::vector<ObsPtr> &gnss_meas){
         if(freq_idx < 0){ // no L1 observation
             continue;
         }
-        // 根据星历参数时间to3，判断当前星历参数是否有效
+        // 根据星历参数时间toe，判断当前星历参数是否有效
         // 一般认为当前的GPS时间在星历参考时间前后2小时内(7200秒)有效
         double obs_time = time2sec(obs->time);
         std::map<double, size_t> time2indx = sat2time_index.at(obs->sat);
@@ -296,7 +296,8 @@ void Estimator::processGNSS(const std::vector<ObsPtr> &gnss_meas){
             std::cerr << "ephemeris not valid anymore\n";
             continue;
         }
-        const EphemBasePtr &best_ephem = sat2ephem.at(obs->sat).at(ephem_index);
+        // 获取最佳星历
+        const EphemBasePtr &best_ephem = sat2ephem.at(obs->sat).at(ephem_index); 
 
         // filter by tracking status
         // 根据卫星的跟踪状态，伪距、多普勒测量的标准差，判断数据的合法性

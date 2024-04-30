@@ -124,6 +124,8 @@ bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_ms
     // 当imu、feature、gnss数据有一个为空直接返回false
     if (imu_buf.empty() || feature_buf.empty() || (GNSS_ENABLE && gnss_meas_buf.empty()))
         return false;
+
+    RCUTILS_LOG_INFO("imu_buf: %d", imu_buf.size());
     // 将imu和图像的时间戳尽量对齐，front_feature_ts指feature_buf中的第一帧图像时间
     double front_feature_ts = stamp2Sec(feature_buf.front()->header.stamp);
 

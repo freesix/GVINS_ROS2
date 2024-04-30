@@ -71,7 +71,7 @@ bool GNSSVIInitializer::yaw_alignment(const std::vector<Eigen::Vector3d> &local_
         // 构建多普测量的残差和雅可比矩阵，用于最小二乘求导
         uint32_t align_counter = 0;
         for(uint32_t i=0; i<gnss_meas_buf.size(); ++i){
-            Eigen::Matrix<double, 4, 1> ecef_vel_ddt; // 纪律vio速度转到ecef下的数值和接收机时钟钟差变化率
+            Eigen::Matrix<double, 4, 1> ecef_vel_ddt; // 记录vio速度转到ecef下的数值和接收机时钟钟差变化率
             ecef_vel_ddt.head<3>() = rough_R_ecef_enu * align_R_enu_local * local_vs[i]; // VIO的速度local->efef
             ecef_vel_ddt(3) = est_rcv_ddt; // 接收机时钟钟差变化率
             Eigen::VectorXd epoch_res; // 多普勒测量残差
@@ -122,7 +122,7 @@ bool GNSSVIInitializer::anchor_refinement(const std::vector<Eigen::Vector3d> &lo
     const Eigen::Matrix<double, 7, 1> &rough_ecef_dt, Eigen::Matrix<double, 7, 1> &refined_ecef_dt){
 
     refined_ecef_dt.setZero();
-
+    // 用一个角轴对象创建旋转矩阵(此旋转矩阵只用yam角和旋转轴两个参数来构造)
     Eigen::Matrix3d aligned_R_enu_local(Eigen::AngleAxisd(aligned_yam, Eigen::Vector3d::UnitZ()));
     
     // 精细化anchor point和接收机时钟钟差

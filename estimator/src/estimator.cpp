@@ -726,7 +726,7 @@ void Estimator::solveOdometry(){
         optimization();
         if(GNSS_ENABLE){
             if(!gnss_ready){
-                gnss_ready = GNSSVIAlign();
+                gnss_ready = GNSSVIAlign(); // GNSS和VIO进行初始化
             }
             if(gnss_ready){
                 updateGNSSStatistics();
@@ -1232,7 +1232,7 @@ void Estimator::optimization(){
         }
         last_marginalization_info = marginalization_info;
         last_marginalization_parameter_blocks = parameter_blocks;
-    }
+    }  // marginalized old
     else{
         if (last_marginalization_info &&
             std::count(std::begin(last_marginalization_parameter_blocks), std::end(

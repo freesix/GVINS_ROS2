@@ -22,15 +22,15 @@ def generate_launch_description():
         ),
     
     
-        Node(
-            package='gvins_feature_tracker',    
-            executable='feature_tracker_node',
-            name='feature_node',
-            parameters=[{'config_file': LaunchConfiguration('config_file')},
-                        {'gvins_path': LaunchConfiguration('gvins_path')}],
-            ros_arguments=['--log-level', log_level],
-            output='screen'
-        ),
+        # Node(
+            # package='gvins_feature_tracker',    
+            # executable='feature_tracker_node',
+            # name='feature_node',
+            # parameters=[{'config_file': LaunchConfiguration('config_file')},
+                        # {'gvins_path': LaunchConfiguration('gvins_path')}],
+            # ros_arguments=['--log-level', log_level],
+            # output='screen'
+        # ),
         Node(
             package='gvins',
             executable='estimator_node',

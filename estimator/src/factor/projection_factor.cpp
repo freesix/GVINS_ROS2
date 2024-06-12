@@ -28,29 +28,29 @@ ProjectionFactor::ProjectionFactor(const Eigen::Vector3d &_pts_i, const Eigen::V
 bool ProjectionFactor::Evaluate(double const *const *parameters, double *residuals,
     double **jacobians) const{
     TicToc tic_toc;
-    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]); 
-    Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
+    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]); // 机体在i处的世界坐标系下的位置
+    Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]); // 机体在i处的世界坐标系下的姿态
 
-    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
-    Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
+    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]); // 机体在j处的世界坐标系下的位置
+    Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]); // 机体在j处的世界坐标系下的姿态
 
-    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
-    Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
+    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]); // 相机坐标系到imu坐标系的平移
+    Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]); // 相机坐标系到imu坐标系的旋转
 
-    double inv_dep_i = parameters[3][0];
+    double inv_dep_i = parameters[3][0]; // 特征点的逆深度
 
-    Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i;
-    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
-    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
+    Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i; // 从像素坐标系到相机坐标系
+    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic; // 从相机坐标系到imu坐标系
+    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi; // imu坐标系到世界坐标系
+    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj); // 从世界坐标系根据相机j的位姿转换到imu坐标系
+    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic); // 转换到相机坐标系
     Eigen::Map<Eigen::Vector2d> residual(residuals);
 
 #ifdef UNIT_SPHERE_ERROR
     residual = tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
 #else
     double dep_j = pts_camera_j.z();
-    residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>();
+    residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>(); // 计算两个相机对应同一点的像素坐标之间的误差
 #endif
 
     residual = sqrt_info * residual;

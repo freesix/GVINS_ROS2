@@ -9,11 +9,11 @@ ProjectionTdFactor::ProjectionTdFactor(const Eigen::Vector3d &_pts_i, const Eige
                                        pts_i(_pts_i), pts_j(_pts_j), 
                                        td_i(_td_i), td_j(_td_j)
 {
-    velocity_i.x() = _velocity_i.x();
-    velocity_i.y() = _velocity_i.y();
+    velocity_i.x() = _velocity_i.x(); // 特征点在i帧x方向上的速度
+    velocity_i.y() = _velocity_i.y(); // 特征点在i帧y方向上的速度
     velocity_i.z() = 0;
-    velocity_j.x() = _velocity_j.x();
-    velocity_j.y() = _velocity_j.y();
+    velocity_j.x() = _velocity_j.x(); // 特征点在j帧x方向上的速度
+    velocity_j.y() = _velocity_j.y(); // 特征点在j帧y方向上的速度
     velocity_j.z() = 0;
 
 #ifdef UNIT_SPHERE_ERROR
@@ -32,20 +32,20 @@ ProjectionTdFactor::ProjectionTdFactor(const Eigen::Vector3d &_pts_i, const Eige
 bool ProjectionTdFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
 {
     TicToc tic_toc;
-    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
-    Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
+    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]); // 机体在i帧的位置(世界坐标系)
+    Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]); // 机体在i帧的姿态(世界坐标系)
 
-    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
-    Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
+    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]); // 机体在j帧的位置(世界坐标系)
+    Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]); // 机体在j帧的姿态(世界坐标系)
 
-    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
-    Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
+    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]); // 相机坐标系到imu坐标系的平移
+    Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]); // 相机坐标系到imu坐标系的旋转
 
-    double inv_dep_i = parameters[3][0];
+    double inv_dep_i = parameters[3][0]; // 该特征点的逆深度
 
-    double td = parameters[4][0];
+    double td = parameters[4][0]; 
 
-    Eigen::Vector3d pts_i_td, pts_j_td;
+    Eigen::Vector3d pts_i_td, pts_j_td; // 跟踪特征点在i帧和j帧图像中的像素坐标
     pts_i_td = pts_i - (td - td_i) * velocity_i;
     pts_j_td = pts_j - (td - td_j) * velocity_j;
     Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;

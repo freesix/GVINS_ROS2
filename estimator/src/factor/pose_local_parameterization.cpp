@@ -1,5 +1,4 @@
 #include "pose_local_parameterization.hpp"
-// !!此文件及其头文件好像未被使用，下面函数有点问题!!
 
 bool PoseLocalParameterization::Plus(const double *x, const double *delta, double *x_plus_delta) const{
     Eigen::Map<const Eigen::Vector3d> _p(x);

@@ -210,7 +210,7 @@ public:
     Eigen::Quaterniond delta_q; // 当前时刻本体坐标系下旋转
     Eigen::Vector3d delta_v; // 当前时刻本体坐标系下速度
     // 该段预积分所使用的imu数据的缓存
-    // 当bias变换豁达时，需要使用这些数据进重新预积分
+    // 当bias变换时，需要使用这些数据进重新预积分
     std::vector<double> dt_buf;
     std::vector<Eigen::Vector3d> acc_buf;
     std::vector<Eigen::Vector3d> gyr_buf;

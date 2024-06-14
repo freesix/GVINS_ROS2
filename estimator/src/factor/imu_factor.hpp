@@ -5,26 +5,30 @@
 #include "../parameters.hpp"
 #include "integration_base.hpp"
 #include <ceres/ceres.h>
-
+/**
+ * @brief imu 因子
+ * 残差维度15
+ * 机体在i帧的位姿，维度为7
+ * 机体在i帧的速度和imu偏置，维度为9
+ * 机体在j帧的位姿，维度为7
+ * 机体在j帧的速度和imu偏置，维度为9
+*/
 class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>{
 public:
     IMUFactor() = delete;
     IMUFactor(IntegrationBase* _pre_integration) : pre_integration(_pre_integration){}
 
-    /**
-     * @brief 计算所有状态变量构成的残差和雅可比矩阵
-    */
     virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians)const{
-        Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
-        Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
-        Eigen::Vector3d Vi(parameters[1][0], parameters[1][1], parameters[1][2]);
-        Eigen::Vector3d Bai(parameters[1][3], parameters[1][4], parameters[1][5]);
-        Eigen::Vector3d Bgi(parameters[1][6], parameters[1][7], parameters[1][8]);
+        Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]); // 机体在i帧的世界坐标系下的位置
+        Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]); // 机体在i帧的世界坐标系下的姿态
+        Eigen::Vector3d Vi(parameters[1][0], parameters[1][1], parameters[1][2]); // 机体在i帧的速度
+        Eigen::Vector3d Bai(parameters[1][3], parameters[1][4], parameters[1][5]); // imu加速度偏置
+        Eigen::Vector3d Bgi(parameters[1][6], parameters[1][7], parameters[1][8]); // imu角速度偏置
 
-        Eigen::Vector3d Pj(parameters[2][0], parameters[2][1], parameters[2][2]);
-        Eigen::Quaterniond Qj(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
-        Eigen::Vector3d Vj(parameters[3][0], parameters[3][1], parameters[3][2]);
-        Eigen::Vector3d Baj(parameters[3][3], parameters[3][4], parameters[3][5]);
+        Eigen::Vector3d Pj(parameters[2][0], parameters[2][1], parameters[2][2]); // 机体在j帧的世界坐标系下的位置
+        Eigen::Quaterniond Qj(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]); // 机体在j帧的世界坐标系下的姿态
+        Eigen::Vector3d Vj(parameters[3][0], parameters[3][1], parameters[3][2]); // 机体在j帧的速度
+        Eigen::Vector3d Baj(parameters[3][3], parameters[3][4], parameters[3][5]); 
         Eigen::Vector3d Bgj(parameters[3][6], parameters[3][7], parameters[3][8]);
 
 #if 0 
@@ -36,7 +40,8 @@ public:
         Eigen::Map<Eigen::Matrix<double, 15, 1>> residual(residuals); // 残差
         residual = pre_integration->evaluate(Pi, Qi, Vi, Bai, Bgi,
                                             Pj, Qj, Vj, Baj, Bgj);
-        // 协方差矩阵，做LLT分解
+        // 协方差矩阵，做LLT分解，仅对正定矩阵有效
+        // $A=L * L^T$
         Eigen::Matrix<double, 15, 15> sqrt_info = Eigen::LLT<Eigen::Matrix<double, 15, 15>>
                                     (pre_integration->covariance.inverse()).matrixL().transpose();
         residual = sqrt_info * residual; // 马氏距离加权后得到的残差

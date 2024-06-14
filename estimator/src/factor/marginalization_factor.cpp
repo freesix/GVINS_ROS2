@@ -12,7 +12,7 @@ void ResidualBlockInfo::Evaluate(){
         raw_jacobians[i] = jacobians[i].data();
     }
     cost_function->Evaluate(parameter_blocks.data(), residuals.data(), raw_jacobians);
-
+    // 下面都是用核函数对雅可比和残差进行加权(加权规则根据sq_norm和rho值来判断)
     if(loss_function){ // 核函数
         double residual_scaling_, alpha_sq_norm_;
         double sq_norm, rho[3];
@@ -55,7 +55,8 @@ MarginalizationInfo::~MarginalizationInfo(){
 
 /**
  * @brief 将residual_block_info 添加到 marginalization_info
- * 就是将不同损失函数对应的优化变量、边缘化位置存入parameter_block_sizes和parameter_block_idx
+ * @details 就是将不同损失函数对应的优化变量、边缘化位置存入
+ * parameter_block_sizes和parameter_block_idx
  * 但parameter_block_idx中存的仅是待边缘化的变量的内存地址，而其对应值全为0
 */
 void MarginalizationInfo::addResidualBlockInfo(ResidualBlockInfo *residual_block_info){
@@ -72,7 +73,7 @@ void MarginalizationInfo::addResidualBlockInfo(ResidualBlockInfo *residual_block
     // 这里被边缘化变量的id
     for(int i=0; i<static_cast<int>(residual_block_info->drop_set.size()); i++){
         double *addr = parameter_blocks[residual_block_info->drop_set[i]];
-        parameter_block_idx[reinterpret_cast<long>(addr)] = 0;
+        parameter_block_idx[reinterpret_cast<long>(addr)] = 0; // 将被边缘化的变量索引(索引值又由地址索引)设为0
     }
 }
 

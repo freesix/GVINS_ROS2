@@ -10,7 +10,10 @@
 #include "../utility/tic_toc.h"
 
 const int NUM_THREADS = 4;
-
+/**
+ * @brief 边缘化的残差块
+ * @details 将边缘化涉及的所有残差信息组合起来
+*/
 struct ResidualBlockInfo
 {   // 将不同损失函数_cost_function和优化变量_parameter_blocks组合起来添加到marginlization_info中
     ResidualBlockInfo(ceres::CostFunction *_cost_function, ceres::LossFunction *_loss_function, 
@@ -20,9 +23,9 @@ struct ResidualBlockInfo
 
     void Evaluate();
 
-    ceres::CostFunction *cost_function;
+    ceres::CostFunction *cost_function; // 误差函数(残差函数)
     ceres::LossFunction *loss_function; // 核函数
-    std::vector<double *> parameter_blocks;
+    std::vector<double *> parameter_blocks; // 参数块地址
     std::vector<int> drop_set; // 被边缘化的变量
 
     double **raw_jacobians;
@@ -34,7 +37,10 @@ struct ResidualBlockInfo
         return size == 7 ? 6 : size;
     }
 };
-
+/**
+ * @brief 线程变量结构体
+ * @details 线程中要用到的对象和变量等资源
+*/
 struct ThreadsStruct
 {
     std::vector<ResidualBlockInfo *> sub_factors;
@@ -50,12 +56,25 @@ class MarginalizationInfo
     ~MarginalizationInfo();
     int localSize(int size) const;
     int globalSize(int size) const;
-    void addResidualBlockInfo(ResidualBlockInfo *residual_block_info); // 添加残差块信息
-    // 计算每个残差对应的雅可比，并更新parameter_block_data
-    // 得到每次IMU、视觉观测(cost_function)对应的参数块，雅可比矩阵、残差
+    /**
+     * @brief 边缘化残差块信息添加
+    */
+    void addResidualBlockInfo(ResidualBlockInfo *residual_block_info);
+    /**
+     * @brief 边缘化前的预处理
+     * 计算每个残差对应的雅可比，并更新parameter_block_data
+     * 得到每次IMU、视觉观测(cost_function)对应的参数块，雅可比矩阵、残差
+    */
     void preMarginalize();
-    // 多线程进行marg，执行了Shur补操作，pose为所有变量维度，m为需要marg掉的变量，n为保留的变量
+    /**
+     * @brief 边缘化
+     * 多线程进行marg，执行了Shur补操作，pose为所有变量维度，m为需要marg掉的变量，n为保留的变量
+    */
     void marginalize();
+    /**
+     * @brief 获取参数块
+     * @param addr_shift 参数块的地址偏移
+    */
     std::vector<double *> getParameterBlocks(std::unordered_map<long, double *> &addr_shift);
 
     std::vector<ResidualBlockInfo *> factors; // 所有观测项
@@ -75,7 +94,9 @@ class MarginalizationInfo
     const double eps = 1e-8;
 
 };
-
+/**
+ * @brief 边缘化因子
+*/
 class MarginalizationFactor : public ceres::CostFunction
 {
   public:

@@ -463,7 +463,7 @@ int main(int argc, char** argv){
 #ifdef EIGEN_DONT_PARALLELIZE
     RCUTILS_LOG_DEBUG("EIGEN_DONT_PARALLELIZE");
 #endif
-    registerPub(n);
+    registerPub(n); // 注册发布节点
 
     next_pulse_time_valid = false;
     time_diff_valid = false;

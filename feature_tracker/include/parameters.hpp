@@ -16,7 +16,7 @@ extern int MIN_DIST; // 特征点之间的最小距离
 extern int WINDOW_SIZE;
 extern int FREQ; // 发布跟踪结果频率，最少10hz，为0则和raw image一样频率
 extern double F_THRESHOLD; // ransac阈值
-extern int SHOW_TRACK; // 是否将跟踪图像作为话题发布
+extern int SHOW_TRACK; // 是否可视化跟踪结果
 extern int STEREO_TRACK; 
 extern int EQUALIZE; // 图像是否均衡化
 extern int FISHEYE;

@@ -27,7 +27,6 @@ namespace Data{
     Eigen::Vector3d gyr_0;
 
 
-    void readImu(const std::string& imu_path);
 
 } // namespace Data
 

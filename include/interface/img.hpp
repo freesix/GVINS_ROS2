@@ -7,8 +7,6 @@
 #include <glog/logging.h>
 #include <regex>
 
-extern FeatureTracker trackerData[NUM_OF_CAM];
-extern bool RESTART_FLAG;
 
 namespace Data{
 
@@ -42,8 +40,8 @@ ImgMsg readImg(const std::string& img_path);
  * @brief img回调函数
 */
 // void imgCallback(const std::vector<std::string>& imgs_path, std::queue<Data::FeatureTimeMsg>& feature_buf);
-void imgCallback(const std::vector<std::string>& imgs_path, 
+/* void imgCallback(const std::vector<std::string>& imgs_path, 
     std::queue<FeatureTimeMsg>& feature_buf,  std::mutex& f_buf);
-
+ */
 
 } // namespace Data

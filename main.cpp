@@ -1,6 +1,7 @@
 #include <thread>
 #include <queue>
 #include <condition_variable>
+#include <chrono>
 #include "feature_tracker/feature_tracker.hpp"
 #include "gnss_constant.hpp"
 #include "interface/img.hpp"
@@ -219,28 +220,33 @@ void ImuCallback(const std::string& imu_path){
         for(int i=0; i<3; i++){
             iss >> imu_data.angular_velocity(i);
         }
-        std::cout<<"imu_data: "<<imu_data.timestamp<<": "
-            <<imu_data.linear_acceleration<<","<<imu_data.angular_velocity<<std::endl;
+        
+        std::cout<<std::fixed<<"imu_data.timestamp: "<<imu_data.timestamp<<" last_imu_t: "<<last_imu_t<<std::endl;
         // 检查imu数据时间是否合法
+        assert(imu_data.timestamp > last_imu_t);
         if(imu_data.timestamp <= last_imu_t){
+            std::cout<<std::fixed<<"imu_data.timestamp: "<<imu_data.timestamp<<" last_imu_t: "<<last_imu_t<<std::endl;
             LOG(ERROR) << "imu data disordered!";
             continue;
         }
         last_imu_t = imu_data.timestamp;
-        i_buf.lock();
+        m_buf.lock();
         imu_buf.push(imu_data);
-        i_buf.unlock();
+        m_buf.unlock();
         con.notify_one();
 
+        last_imu_t = imu_data.timestamp;
+
         {
-            // std::lock_guard<std::mutex> lg(m_state);
+            std::lock_guard<std::mutex> lg(m_state);
             //TODO
-            /* predict(imu_data);
+            predict(imu_data);
             // 此处预测完后，发布tmp_P, tmp_Q, tmp_V, timestamp来做可视化
             std::cout<<"tmp_P: "<<tmp_P.transpose()<<std::endl;
             std::cout<<"tmp_Q: "<<tmp_Q.coeffs().transpose()<<std::endl;
-            std::cout<<"tmp_V: "<<tmp_V.transpose()<<std::endl;  */
+            std::cout<<"tmp_V: "<<tmp_V.transpose()<<std::endl; 
         }
+        line.clear();
         
     }
     imu_file.close();
@@ -503,9 +509,9 @@ int main(int argc, char** argv){
     if(img_callback.joinable()){
         img_callback.join();
     }
-    if(measurement_process.joinable()){
+    /* if(measurement_process.joinable()){
         measurement_process.join();
-    }
+    } */
     return 0;
 }
 

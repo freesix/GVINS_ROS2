@@ -127,7 +127,7 @@ std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> FeatureManager::getCorr
     
     std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> corres;
     for(auto &it : feature){
-        if(it.start_frame <= frame_count_l && it.endFrame() >= frame_count_r){
+        if(it.start_frame <= frame_count_l && it.endFrame() >= frame_count_r){ // 该特征点要在两帧中都有
             Eigen::Vector3d a = Eigen::Vector3d::Zero(), b = Eigen::Vector3d::Zero();
             int idx_l = frame_count_l - it.start_frame;
             int idx_r = frame_count_r - it.start_frame;

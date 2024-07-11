@@ -93,7 +93,7 @@ void Estimator::clearState(){
 void Estimator::processIMU(double dt, const Eigen::Vector3d &linear_acceleration,
     const Eigen::Vector3d &angular_velocity){
 
-    if(!first_imu){
+    if(!first_imu){ // 第一次IMU数据
         first_imu = true;
         acc_0 = linear_acceleration;
         gyr_0 = angular_velocity; 
@@ -146,7 +146,7 @@ void Estimator::processImage(const std::map<int, std::vector<std::pair<int,
     RCUTILS_LOG_DEBUG("this frame is ------------%s", marginalization_flag ? "reject" : "accept");
     RCUTILS_LOG_DEBUG("%s", marginalization_flag ? "Non-keyframe" : "Keyframe");
     RCUTILS_LOG_DEBUG("Solving %d", frame_count);
-    RCUTILS_LOG_DEBUG("number of feature: %d", f_manager.getFeatureCount());
+    RCUTILS_LOG_DEBUG("number of feature: %d", f_manager.getFeatureCount()); // 获取当前帧的特征点数量
     Headers[frame_count] = header;
 
     ImageFrame imageframe(image, stamp2Sec(header.stamp)); // 建立图像帧管理对象
@@ -156,12 +156,12 @@ void Estimator::processImage(const std::map<int, std::vector<std::pair<int,
     // 相机与IMU外参的在线标定
     if(ESTIMATE_EXTRINSIC == 2){
         RCUTILS_LOG_INFO("calibrating extrinsic param, rotation movement is needed");
-        if(frame_count != 0){
+        if(frame_count != 0){ // 当前帧不为第一帧
             std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> corres = 
-            f_manager.getCorresponding(frame_count-1, frame_count);
+            f_manager.getCorresponding(frame_count-1, frame_count); // 获取当前帧与前一帧之间的匹配特征点
             Eigen::Matrix3d calib_ric;
             if(initial_ex_rotation.CalibrationExRotation(corres, 
-                pre_integrations[frame_count]->delta_q, calib_ric));{
+                pre_integrations[frame_count]->delta_q, calib_ric));{ // 标定旋转外参
 
                 RCUTILS_LOG_WARN("initial extrinsic rotation calib success");
                 RCLCPP_WARN_STREAM(rclcpp::get_logger("estimator"), "initial extrinsic rotation: "<<
@@ -178,7 +178,7 @@ void Estimator::processImage(const std::map<int, std::vector<std::pair<int,
             bool result = false;
             // 外参已知或已被估计，在上一次初始化失败后至少0.1秒才进行下一次初始化
             if(ESTIMATE_EXTRINSIC != 2 && (stamp2Sec(header.stamp)-initial_timestamp) > 0.1){ 
-                result = initialStructure();
+                result = initialStructure(); // 初始化
                 initial_timestamp = stamp2Sec(header.stamp);
             }
             if(result){ // 初始化成功
@@ -894,7 +894,7 @@ void Estimator::optimization(){
     for(int i=0; i<NUM_OF_CAM; i++){
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
         problem.AddParameterBlock(para_Ex_Pose[i], SIZE_POSE, local_parameterization); // 外参
-        if(!ESTIMATE_EXTRINSIC){
+        if(!ESTIMATE_EXTRINSIC){  // 外参没有给定或者没有在线标定，固定外参
             RCUTILS_LOG_DEBUG("fix extinsic param");
             problem.SetParameterBlockConstant(para_Ex_Pose[i]);
         }
@@ -902,7 +902,7 @@ void Estimator::optimization(){
             RCUTILS_LOG_DEBUG("estimate extinsic param");
         }
     }
-    if(ESTIMATE_TD){
+    if(ESTIMATE_TD){  // 优化时间
         problem.AddParameterBlock(para_Td[0], 1); // 时间
     }
     if(gnss_ready){
@@ -1012,23 +1012,23 @@ void Estimator::optimization(){
 
     int f_m_cnt = 0; // 每个特征点，观测到它得相机计数
     int feature_index = -1;
-    for(auto &it_per_id : f_manager.feature){
-        it_per_id.used_num = it_per_id.feature_per_frame.size();
-        if(!(it_per_id.used_num>=2 && it_per_id.start_frame<WINDOW_SIZE-2)){
+    for(auto &it_per_id : f_manager.feature){ // 遍历滑动窗口中的特征点
+        it_per_id.used_num = it_per_id.feature_per_frame.size(); // 获取该特征点被观测到的次数
+        if(!(it_per_id.used_num>=2 && it_per_id.start_frame<WINDOW_SIZE-2)){ // 观测次数小于2或者起始帧小于2，不优化
             continue;
         }
-        ++feature_index;
+        ++feature_index; // 参与优化的特征点索引
 
         int imu_i = it_per_id.start_frame, imu_j = imu_i+1;
-        Eigen::Vector3d pts_i = it_per_id.feature_per_frame[0].point;
+        Eigen::Vector3d pts_i = it_per_id.feature_per_frame[0].point; // 特征点在第一次被观测的图像帧中的位置
 
-        for(auto &it_per_frame : it_per_id.feature_per_frame){
+        for(auto &it_per_frame : it_per_id.feature_per_frame){ // 遍历特征点在所有的观测帧
             imu_j++;
             if(imu_i == imu_j){
                 continue;
             }
-            Eigen::Vector3d pts_j = it_per_frame.point;
-            if(ESTIMATE_TD){
+            Eigen::Vector3d pts_j = it_per_frame.point; // 获取该特征点在其它观测帧的位置
+            if(ESTIMATE_TD){ // 如果优化时间偏差
                   ProjectionTdFactor *f_td = new ProjectionTdFactor(pts_i, pts_j, 
                         it_per_id.feature_per_frame[0].velocity, it_per_frame.velocity,
                         it_per_id.feature_per_frame[0].cur_td, it_per_frame.cur_td);
@@ -1036,7 +1036,7 @@ void Estimator::optimization(){
                     para_Pose[imu_j], para_Ex_Pose[0], para_Feature[feature_index], 
                     para_Td[0]); 
             }
-            else
+            else // 不优化时间偏差，只用视觉投影因子
             {
                 ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
                 problem.AddResidualBlock(f, loss_function, para_Pose[imu_i], para_Pose[imu_j], para_Ex_Pose[0], para_Feature[feature_index]);

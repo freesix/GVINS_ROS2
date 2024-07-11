@@ -85,10 +85,11 @@ Eigen::Matrix3d InitialEXRotation::solveRelativeR(const std::vector<std::pair<Ei
 
         // 本质矩阵svd分解得到4组Rt解
         decomposeE(E, R1, R2, t1, t2);
-        if(cv::determinant(R1) + 1.0 < 1e-09){
+        if(cv::determinant(R1) + 1.0 < 1e-09){ // R1行列式不为1，而是 ≈ -1，说明分解过程符号取反
             E = -E;
             decomposeE(E, R1, R2, t1, t2);
         }
+        // 验证两组解的正确性，获取比率大对应的旋转R
         double ratio1 = std::max(testTriangulation(ll, rr, R1, t1) ,testTriangulation(ll, rr, R1, t2));
         double ratio2 = std::max(testTriangulation(ll, rr, R2, t1), testTriangulation(ll, rr, R2, t2));
         cv::Mat_<double> ans_R_cv = ratio1 > ratio2 ? R1 : R2;
@@ -112,13 +113,13 @@ double InitialEXRotation::testTriangulation(const std::vector<cv::Point2f> &l,
     cv::Mat pointcloud;
     cv::Matx34f P = cv::Matx34f(1, 0, 0, 0,
                                 0, 1, 0, 0,
-                                0, 0, 1, 0);
+                                0, 0, 1, 0); // 投影到规范平面的投影矩阵
     cv::Matx34f P1 = cv::Matx34f(R(0,0), R(0,1), R(0,2), t(0),
                                  R(1,0), R(1,1), R(1,2), t(1),
-                                 R(2,0), R(2,1), R(2,2), t(2));
+                                 R(2,0), R(2,1), R(2,2), t(2)); // 求得的R和t构成的投影矩阵
     cv::triangulatePoints(P, P1, l, r, pointcloud);
     int front_count = 0;
-    // 判断三角化得到的3D点是否还在两个相机前方
+    // 判断三角化得到的3D点是否还在两个相机前方，即z大于零
     for(int i=0; i<pointcloud.cols; i++){
         double normal_factor = pointcloud.col(i).at<float>(3); // z 
         cv::Mat_<double> p_3d_l = cv::Mat(P) * (pointcloud.col(i) / normal_factor);
@@ -133,7 +134,12 @@ double InitialEXRotation::testTriangulation(const std::vector<cv::Point2f> &l,
 
 
 /**
- * @brief 分解本质矩阵得到可能得R和t
+ * @brief 分解本质矩阵得到两组可能的R和t
+ * @param E 本质矩阵
+ * @param R1 旋转矩阵1
+ * @param R2 旋转矩阵2
+ * @param t1 平移向量1
+ * @param t2 平移向量2
 */
 void InitialEXRotation::decomposeE(cv::Mat E, cv::Mat_<double> &R1, cv::Mat_<double> &R2,
                                    cv::Mat_<double> &t1, cv::Mat_<double> &t2){

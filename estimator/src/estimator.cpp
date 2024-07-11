@@ -374,7 +374,7 @@ bool Estimator::initialStructure(){
             var += (tmp_g - aver_g).transpose() * (tmp_g - aver_g);
         }
         var = sqrt(var / ((int)all_image_frame.size() - 1));
-        if(var < 0.25){
+        if(var < 0.25){ // 用重力的协方差判断IMU的激发程度
             RCUTILS_LOG_INFO("IMU excitation not enough!");
             // return false;
         }
@@ -400,7 +400,7 @@ bool Estimator::initialStructure(){
     Eigen::Matrix3d relative_R;
     Eigen::Vector3d relative_T;
     int l;
-    if(!relativePose(relative_R, relative_T, l)){
+    if(!relativePose(relative_R, relative_T, l)){   
         RCUTILS_LOG_INFO("Not enough features or parallax; Move divece around");
         return false;
     }
@@ -690,9 +690,9 @@ void Estimator::updateGNSSStatistics()
 */
 bool Estimator::relativePose(Eigen::Matrix3d &relative_R, Eigen::Vector3d &relative_T, int &l){
     // find previous frame which contians enough correspondance and parallex with newest frame
-    for(int i=0; i<WINDOW_SIZE; i++){
+    for(int i=0; i<WINDOW_SIZE; i++){ // 从i=0开始，找到与最新帧有足够多数量的特征点对应关系和视差的帧l=i
         std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> corres;
-        corres = f_manager.getCorresponding(i, WINDOW_SIZE);
+        corres = f_manager.getCorresponding(i, WINDOW_SIZE); // 获取第i帧和最新帧之间的特征点对应关系
         if(corres.size() > 20){
             double sum_parallax = 0;
             double average_parallax;

@@ -4,6 +4,12 @@
 
 class MotionEstimator{
 public:
+    /**
+     * @brief 通过5点法求解两帧图像之间的相关位姿
+     * @param corres 两帧图像之间相匹配的特征点
+     * @param Rotation 求解得到的旋转矩阵
+     * @param Translation 求解得到的平移向量
+    */
     bool solveRelativeRT(const std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>
                         &corres, Eigen::Matrix3d &R, Eigen::Vector3d &T);
 

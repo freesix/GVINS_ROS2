@@ -1,10 +1,9 @@
 #include "solve_5pts.hpp"
 
-
 bool MotionEstimator::solveRelativeRT(const std::vector<std::pair<Eigen::Vector3d, 
         Eigen::Vector3d>> &corres, Eigen::Matrix3d &Rotation, Eigen::Vector3d &Translation){
 
-    if(corres.size() >= 15){
+    if(corres.size() >= 15){ // 确保5点法求解的特征点对数目大于15个
         std::vector<cv::Point2f> ll, rr;
         for(int i=0; i<int(corres.size()); i++){
             ll.push_back(cv::Point2f(corres[i].first(0), corres[i].first(1)));

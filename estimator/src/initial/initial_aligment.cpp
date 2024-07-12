@@ -1,6 +1,7 @@
 #include "initial_aligment.hpp"
 /**
  * @brief 更新得到新的陀螺仪漂移，并用新漂移重新积分
+ * @details 用相邻两帧之间的相机旋转、IMU积分旋转，构建最小二乘问题，ldlt求解
 */
 void solveGyroscopeBias(std::map<double, ImageFrame> &all_image_frame, Eigen::Vector3d* Bgs){
     Eigen::Matrix3d A;
@@ -10,31 +11,35 @@ void solveGyroscopeBias(std::map<double, ImageFrame> &all_image_frame, Eigen::Ve
     b.setZero();
     std::map<double, ImageFrame>::iterator frame_i;
     std::map<double, ImageFrame>::iterator frame_j;
+    // 从滑窗第一帧遍历到倒数第二帧
     for(frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++){
         frame_j = next(frame_i);
         Eigen::MatrixXd tmp_A(3, 3);
         tmp_A.setZero();
         Eigen::VectorXd tmp_b(3);
         tmp_b.setZero();
-        Eigen::Quaterniond q_ij(frame_i->second.R.transpose() * frame_j->second.R);
+        Eigen::Quaterniond q_ij(frame_i->second.R.transpose() * frame_j->second.R); // 纯视觉里程计求解的i到j的旋转
         tmp_A = frame_j->second.per_integration->jacobian.template block<3, 3>(O_R, O_BG);
-        tmp_b = q_ij * (frame_j->second.per_integration->delta_q.inverse() * q_ij).vec();
-        A += tmp_A.transpose() * tmp_A;
-        b += tmp_A.transpose() * tmp_b;
+        tmp_b = 2 * (frame_j->second.per_integration->delta_q.inverse() * q_ij).vec();
+        A += tmp_A.transpose() * tmp_A; // 累计雅可比
+        b += tmp_A.transpose() * tmp_b; // 累计误差
     }
     delta_bg = A.ldlt().solve(b); 
     RCLCPP_WARN_STREAM(rclcpp::get_logger("rclcpp"), "gyroscope bias initial calibration " << delta_bg.transpose());
-
+    // 更新偏置
     for(int i=0; i<=WINDOW_SIZE; i++){
         Bgs[i] += delta_bg;
     }
-
+    // 更新偏置后重新计算积分
     for(frame_i = all_image_frame.begin(); next(frame_j) != all_image_frame.end(); frame_i++){
         frame_j = next(frame_i);
         frame_j->second.per_integration->repropagate(Eigen::Vector3d::Zero(), Bgs[0]);
     }
 }
-
+/**
+ * @brief 计算重力矢量的切线空间
+ * @details 以重力矢量为z轴，构建一个正交基
+*/
 Eigen::MatrixXd TangentBasis(Eigen::Vector3d &g0){
     Eigen::Vector3d b, c;
     Eigen::Vector3d a = g0.normalized();
@@ -55,8 +60,8 @@ Eigen::MatrixXd TangentBasis(Eigen::Vector3d &g0){
 void RefineGravity(std::map<double, ImageFrame> &all_image_frame, Eigen::Vector3d &g,
     Eigen::VectorXd &x){
 
-    Eigen::Vector3d g0 = g.normalized() * G.norm();   
-    Eigen::Vector3d lx, ly;
+    Eigen::Vector3d g0 = g.normalized() * G.norm();  // 方向\times模长 
+    Eigen::Vector3d lx, ly; // 切空间的两个基
 
     int all_frame_count = all_image_frame.size();
     int n_state = all_frame_count * 3 + 2 + 1;
@@ -70,7 +75,7 @@ void RefineGravity(std::map<double, ImageFrame> &all_image_frame, Eigen::Vector3
     std::map<double, ImageFrame>::iterator frame_j;
     for(int k=0; k<4; k++){
         Eigen::MatrixXd lxly(3, 2);
-        lxly = TangentBasis(g0);
+        lxly = TangentBasis(g0); // 求g0的切线空间，构成一个正交基
         int i = 0; 
         for(frame_i = all_image_frame.begin(); next(frame_j) != all_image_frame.end(); frame_i++, i++){
             frame_j = next(frame_i);
@@ -135,6 +140,7 @@ bool LinearAlignment(std::map<double, ImageFrame> &all_image_frame, Eigen::Vecto
     std::map<double, ImageFrame>::iterator frame_i;
     std::map<double, ImageFrame>::iterator frame_j;
     int i = 0;
+    // 遍历滑窗中第一帧到倒数第二帧
     for (frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++, i++)
     {
         frame_j = next(frame_i);
@@ -181,7 +187,7 @@ bool LinearAlignment(std::map<double, ImageFrame> &all_image_frame, Eigen::Vecto
     RCUTILS_LOG_DEBUG("estimated scale: %f", s);
     g = x.segment<3>(n_state - 4);
     RCLCPP_DEBUG_STREAM(rclcpp::get_logger("rclcpp"), " result g " << g.norm() << " " << g.transpose());
-    if(fabs(g.norm() - G.norm()) > 1.0 || s < 0)
+    if(fabs(g.norm() - G.norm()) > 1.0 || s < 0) // 判断重力矢量是否合理，尺度因子是否合理
     {
         return false;
     }

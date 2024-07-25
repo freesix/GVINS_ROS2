@@ -11,22 +11,27 @@ void solveGyroscopeBias(std::map<double, ImageFrame> &all_image_frame, Eigen::Ve
     b.setZero();
     std::map<double, ImageFrame>::iterator frame_i;
     std::map<double, ImageFrame>::iterator frame_j;
-    // 从滑窗第一帧遍历到倒数第二帧
+    // 遍历滑窗内所有图像帧
     for(frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++){
-        frame_j = next(frame_i);
+        frame_j = next(frame_i); // 下一帧
         Eigen::MatrixXd tmp_A(3, 3);
         tmp_A.setZero();
         Eigen::VectorXd tmp_b(3);
         tmp_b.setZero();
+        // R_ij = (R^c0_bk)^-1 * (R^c0_bk+1) 转换为四元数 q_ij = (q^c0_bk)^-1 * (q^c0_bk+1)
         Eigen::Quaterniond q_ij(frame_i->second.R.transpose() * frame_j->second.R); // 纯视觉里程计求解的i到j的旋转
+        // tmp_A = J_j_bw 雅可比，没有算上偏置的预积分雅可比
         tmp_A = frame_j->second.per_integration->jacobian.template block<3, 3>(O_R, O_BG);
+        //tmp_b = 2 * (r^bk_bk+1)^-1 * (q^c0_bk)^-1 * (q^c0_bk+1)
+        //      = 2 * (r^bk_bk+1)^-1 * q_ij
         tmp_b = 2 * (frame_j->second.per_integration->delta_q.inverse() * q_ij).vec();
+        //tmp_A * delta_bg = tmp_b
         A += tmp_A.transpose() * tmp_A; // 累计雅可比
         b += tmp_A.transpose() * tmp_b; // 累计误差
     }
     delta_bg = A.ldlt().solve(b); 
     RCLCPP_WARN_STREAM(rclcpp::get_logger("rclcpp"), "gyroscope bias initial calibration " << delta_bg.transpose());
-    // 更新偏置
+    // 更新偏置(假设窗口内Bgs[i]相同)
     for(int i=0; i<=WINDOW_SIZE; i++){
         Bgs[i] += delta_bg;
     }
@@ -42,9 +47,9 @@ void solveGyroscopeBias(std::map<double, ImageFrame> &all_image_frame, Eigen::Ve
 */
 Eigen::MatrixXd TangentBasis(Eigen::Vector3d &g0){
     Eigen::Vector3d b, c;
-    Eigen::Vector3d a = g0.normalized();
+    Eigen::Vector3d a = g0.normalized(); // 重力矢量归一化(单位向量)
     Eigen::Vector3d tmp(0, 0, 1);
-    if(a == tmp){
+    if(a == tmp){ // 重力矢量与z轴平行，改变tmp的方向为x轴，避免奇点
         tmp << 1, 0, 0;
     }
     b = (tmp - a * (a.transpose() * tmp)).normalized();
@@ -64,7 +69,7 @@ void RefineGravity(std::map<double, ImageFrame> &all_image_frame, Eigen::Vector3
     Eigen::Vector3d lx, ly; // 切空间的两个基
 
     int all_frame_count = all_image_frame.size();
-    int n_state = all_frame_count * 3 + 2 + 1;
+    int n_state = all_frame_count * 3 + 2 + 1; // 初始待估计状态量(每帧速度、重力、尺度因子)，这里精细化重力方向是单位向量，所以只有两个自由度
 
     Eigen::MatrixXd A{n_state, n_state};
     A.setZero();
@@ -130,7 +135,7 @@ void RefineGravity(std::map<double, ImageFrame> &all_image_frame, Eigen::Vector3
 bool LinearAlignment(std::map<double, ImageFrame> &all_image_frame, Eigen::Vector3d &g, Eigen::VectorXd &x)
 {
     int all_frame_count = all_image_frame.size();
-    int n_state = all_frame_count * 3 + 3 + 1;
+    int n_state = all_frame_count * 3 + 3 + 1; // 初始待估计状态量(每帧速度、重力、尺度因子)
 
     Eigen::MatrixXd A{n_state, n_state};
     A.setZero();

@@ -18,14 +18,14 @@ public:
                     const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
         : acc_0{_acc_0}, gyr_0{_gyr_0}, linearized_acc{_acc_0}, linearized_gyr{_gyr_0},
           linearized_ba{_linearized_ba}, linearized_bg{_linearized_bg},
-          jacobian{Eigen::Matrix<double, 15, 15>::Identity()}, // 预积分量对自身的雅可比矩阵
+          jacobian{Eigen::Matrix<double, 15, 15>::Identity()}, // 预积分量对状态的雅可比矩阵
           covariance{Eigen::Matrix<double, 15, 15>::Zero()}, // 协方差矩阵，初始为0
           sum_dt{0.0}, 
           delta_p{Eigen::Vector3d::Zero()},  // 初始化位移变化量
           delta_q{Eigen::Quaterniond::Identity()}, // 初始化旋转变化量
           delta_v{Eigen::Vector3d::Zero()} // 初始化速度变化量
     {   
-        // ΔX_{k+1} = F * ΔX_k + G * nk，其中nk为噪声，维度为18*1
+        // ΔX_{k+1} = F * ΔX_k + G * nk，其中nk为噪声，维度为18*1 (状态方程)
         // ΔX_{k+1}的协方差矩阵为P_{k+1} = F * P_k * F^T + G * V * G^T，因此噪声的协方差矩阵为18*18
         noise =  Eigen::Matrix<double, 18, 18>::Zero();
         noise.block<3, 3>(0, 0) = (ACC_N * ACC_N) * Eigen::Matrix3d::Identity(); // k时刻加速度计噪声

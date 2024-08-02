@@ -117,10 +117,10 @@ public:
 #if 0
                 jacobian_pose_j,block<3, 3>(O_R, O_R) = Eigen::Matrix3d::Identity();
 #else   
-                Eigen::Quaterniond corrected_delta_q = pre_integration->delta_q * 
-                    Utility::deltaQ(dq_dbg * (Bai - pre_integration->linearized_ba));
-                jacobian_pose_j.block<3, 3>(O_R, O_R) = Utility::Qleft(Qj.inverse() * 
-                    Qi.inverse() * Qj).bottomRightCorner<3, 3>();    
+                Eigen::Quaterniond corrected_delta_q = 
+                    pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->linearized_bg));
+                jacobian_pose_j.block<3, 3>(O_R, O_R) = 
+                    Utility::Qleft(corrected_delta_q.inverse() * Qi.inverse() * Qj).bottomRightCorner<3, 3>();   
 #endif      
                 jacobian_pose_j = sqrt_info * jacobian_pose_j;
             }

@@ -35,7 +35,12 @@ public:
         noise.block<3, 3>(12, 12) = (ACC_W * ACC_W) * Eigen::Matrix3d::Identity(); // 加速度计零偏噪声
         noise.block<3, 3>(15, 15) = (GYR_W * GYR_W) * Eigen::Matrix3d::Identity(); // 陀螺仪零偏噪声
     }
-
+    /**
+     * @brief 将IMU数据加入预积分，并存储数据用于后面的imu因子优化
+     * @param dt 时间间隔
+     * @param acc 加速度计测量值
+     * @param gyr 陀螺仪测量值
+    */
     void push_back(double dt, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr){
         dt_buf.push_back(dt);
         acc_buf.push_back(acc);
@@ -50,7 +55,7 @@ public:
     void repropagate(const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
     {
         sum_dt = 0.0;
-        acc_0 = linearized_acc; // 重新积分，需要重置上一时刻的加速度计测量值
+        acc_0 = linearized_acc; // 重新积分，需要重置上一时刻的加速度计测量值(linearized_acc缓存着上一时刻的测量值)
         gyr_0 = linearized_gyr; // 重新积分，需要重置上一时刻的陀螺仪测量值
         delta_p.setZero();
         delta_q.setIdentity();

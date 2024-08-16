@@ -110,7 +110,7 @@ void Estimator::processIMU(double dt, const Eigen::Vector3d &linear_acceleration
         dt_buf[frame_count].push_back(dt);  // imu数据对应的时间间隔
         linear_acceleration_buf[frame_count].push_back(linear_acceleration); // 加速度测量值
         angular_velocity_buf[frame_count].push_back(angular_velocity); // 陀螺仪测量值
-        // 根据预积分结果计算Rs、Ps、Vs
+        // 计算每一个imu数据的Rs、Ps、Vs
         int j = frame_count;
         Eigen::Vector3d un_acc_0 = Rs[j] * (acc_0 - Bas[j]) - g;
         Eigen::Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - Bgs[j];
@@ -356,7 +356,7 @@ void Estimator::processGNSS(const std::vector<ObsPtr> &gnss_meas){
 bool Estimator::initialStructure(){
     TicToc t_sfm;
     // check imu observation
-    // 1、通过重力variance确保IMU有足够的激发
+    // 1、通过加速度variance确保IMU有足够的激发
     {
         std::map<double, ImageFrame>::iterator frame_it;
         Eigen::Vector3d sum_g;
@@ -366,24 +366,24 @@ bool Estimator::initialStructure(){
             sum_g += tmp_g;
         }
         Eigen::Vector3d aver_g;
-        aver_g = sum_g * 1.0 / ((int)all_image_frame.size() - 1);
+        aver_g = sum_g * 1.0 / ((int)all_image_frame.size() - 1); // 均值
         double var = 0; 
         for(frame_it = all_image_frame.begin(), frame_it++; frame_it != all_image_frame.end(); frame_it++){
             double dt = frame_it->second.per_integration->sum_dt;
             Eigen::Vector3d tmp_g = frame_it->second.per_integration->delta_v / dt;
             var += (tmp_g - aver_g).transpose() * (tmp_g - aver_g);
         }
-        var = sqrt(var / ((int)all_image_frame.size() - 1));
+        var = sqrt(var / ((int)all_image_frame.size() - 1)); // 方差
         if(var < 0.25){ // 用重力的协方差判断IMU的激发程度
             RCUTILS_LOG_INFO("IMU excitation not enough!");
             // return false;
         }
     } 
-    // global sfm
+    // global sfm(structure from motion)
     Eigen::Quaterniond Q[frame_count + 1]; // 滑动窗口中每一帧的姿态
     Eigen::Vector3d T[frame_count + 1]; // 滑动窗口中每一帧的位置
     std::map<int, Eigen::Vector3d> sfm_tracked_points;
-
+    // 从FeatureManager类中获取特征点数据，存入sfm_f
     std::vector<SFMFeature> sfm_f;  // 用于视觉初始化的图像特征数据
     for(auto &it_per_id : f_manager.feature){
         int imu_j = it_per_id.start_frame - 1;
@@ -400,11 +400,13 @@ bool Estimator::initialStructure(){
     Eigen::Matrix3d relative_R;
     Eigen::Vector3d relative_T;
     int l;
+    
+    // 2.找出窗口内第l帧相对第一帧有足够视差和特征点，并用对极几何恢复相对位姿(用五点法) 
     if(!relativePose(relative_R, relative_T, l)){   
         RCUTILS_LOG_INFO("Not enough features or parallax; Move divece around");
         return false;
     }
-    // 初始化滑动窗口中全部初始帧的相机位姿和特征点的空间3d位置
+    // 3.初始化滑动窗口中全部初始帧的相机位姿和特征点的空间3d位置(三角化)
     GlobalSFM sfm;
     if(!sfm.construct(frame_count + 1, Q, T, l, relative_R, relative_T, sfm_f, sfm_tracked_points)){
         RCUTILS_LOG_DEBUG("global SFM failed!");
@@ -412,7 +414,7 @@ bool Estimator::initialStructure(){
         return false;
     }
 
-    // solve pnp for all frame
+    // 4.solve pnp for all frame
     // 由于初始化并不是一次就能成功，因此图像帧数量可能会超过滑动窗口的大小
     // 所以在视觉初始化的最后，要求出滑动窗口为帧的位姿
     // 最后把世界坐标系从帧1的相机坐标系，转换到帧1的IMU坐标系
@@ -484,7 +486,7 @@ bool Estimator::initialStructure(){
         frame_it->second.R = R_pnp * RIC[0].transpose(); // 根据各帧相机坐标的姿态和外参，得到各帧在imu坐标系的姿态
         frame_it->second.T = T_pnp;
     }
-    // camera和imu对齐
+    // 5.camera和imu对齐(求解重力、尺度、陀螺仪偏置)
     if (!visualInitialAlign())
     {
         RCUTILS_LOG_WARN("misalign visual structure with IMU");
@@ -888,13 +890,13 @@ void Estimator::optimization(){
         // 对于四元数或旋转矩阵需要定义加法，让其在ceres迭代更新时候用此类加法
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
         // AddParameterBlock 向该问题添加具有适当大小和参数化的参数块
-        problem.AddParameterBlock(para_Pose[i], SIZE_POSE, local_parameterization);
-        problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEEDBIAS);
+        problem.AddParameterBlock(para_Pose[i], SIZE_POSE, local_parameterization); // 添加位姿参数块
+        problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEEDBIAS); // 添加速度和偏置参数块
     }
     for(int i=0; i<NUM_OF_CAM; i++){
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
-        problem.AddParameterBlock(para_Ex_Pose[i], SIZE_POSE, local_parameterization); // 外参
-        if(!ESTIMATE_EXTRINSIC){  // 外参没有给定或者没有在线标定，固定外参
+        problem.AddParameterBlock(para_Ex_Pose[i], SIZE_POSE, local_parameterization); // 外参参数块
+        if(!ESTIMATE_EXTRINSIC){  // 不需要优化估计外参，固定外参
             RCUTILS_LOG_DEBUG("fix extinsic param");
             problem.SetParameterBlockConstant(para_Ex_Pose[i]);
         }
@@ -903,17 +905,17 @@ void Estimator::optimization(){
         }
     }
     if(ESTIMATE_TD){  // 优化时间
-        problem.AddParameterBlock(para_Td[0], 1); // 时间
+        problem.AddParameterBlock(para_Td[0], 1); // 时间差参数块
     }
     if(gnss_ready){
-        problem.AddParameterBlock(para_yaw_enu_local, 1); // 偏航角
+        problem.AddParameterBlock(para_yaw_enu_local, 1); // 偏航角参数块
         // 计算水平面平均速度
         Eigen::Vector2d avg_hor_vel(0.0, 0.0);
         for(uint32_t i=0; i<=WINDOW_SIZE; ++i){
             avg_hor_vel += Vs[i].head<2>().cwiseAbs();
         }
         avg_hor_vel /= (WINDOW_SIZE+1);
-        if(avg_hor_vel.norm() < 0.3){ // 水平面平均速度激励是否足够
+        if(avg_hor_vel.norm() < 0.3){ // 水平面平均速度激励是否足够，不够则不优化yam角
             // std::cerr<<"velocity excitation not enough, fix yaw angle.\n";
             problem.SetParameterBlockConstant(para_yaw_enu_local);
         }
@@ -923,7 +925,7 @@ void Estimator::optimization(){
             }
         }
 
-        problem.AddParameterBlock(para_anc_ecef, 3); // anchor point 位置
+        problem.AddParameterBlock(para_anc_ecef, 3); // anchor point 位置参数块
 
         for(uint32_t i=0; i<=WINDOW_SIZE; ++i){
             for(uint32_t k=0; k<4; ++k){

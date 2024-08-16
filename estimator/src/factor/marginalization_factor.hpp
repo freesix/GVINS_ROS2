@@ -16,6 +16,12 @@ const int NUM_THREADS = 4;
 */
 struct ResidualBlockInfo
 {   // 将不同损失函数_cost_function和优化变量_parameter_blocks组合起来添加到marginlization_info中
+    /**
+     * @param _cost_function 误差函数
+     * @param _loss_function 核函数
+     * @param _parameter_blocks 优化变量块的地址
+     * @param _drop_set 被边缘化的变量索引
+     */
     ResidualBlockInfo(ceres::CostFunction *_cost_function, ceres::LossFunction *_loss_function, 
                             std::vector<double *> _parameter_blocks, std::vector<int> _drop_set)
         : cost_function(_cost_function), loss_function(_loss_function), 

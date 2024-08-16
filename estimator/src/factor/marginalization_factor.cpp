@@ -4,7 +4,7 @@ void ResidualBlockInfo::Evaluate(){
     residuals.resize(cost_function->num_residuals()); // 根据损失函数中优化变量块调整参数向量
 
     std::vector<int> block_sizes = cost_function->parameter_block_sizes(); // 获取每个参数块大小
-    raw_jacobians = new double *[block_sizes.size()]; // 创建雅可比数据指针
+    raw_jacobians = new double *[block_sizes.size()]; // 创建雅可比数据指针(创建bolck_sizes.size()个指针)
     jacobians.resize(block_sizes.size());
 
     for(int i=0; i<static_cast<int>(block_sizes.size()); i++){ // 根据参数块数量一个个遍历

@@ -18,7 +18,7 @@
 * along with gnss_comm. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "rinex_helper.hpp"
+#include "gnss_comm/rinex_helper.hpp"
 
 namespace gnss_comm
 {
@@ -107,26 +107,26 @@ namespace gnss_comm
             ephem->iode  = str2double(ephem_lines[1].substr(4, 19));
         ephem->crs       = str2double(ephem_lines[1].substr(23, 19));
         ephem->delta_n   = str2double(ephem_lines[1].substr(42, 19));
-        ephem->m0        = str2double(ephem_lines[1].substr(61, 19));
+        ephem->M0        = str2double(ephem_lines[1].substr(61, 19));
 
         // the third line
         ephem->cuc = str2double(ephem_lines[2].substr(4, 19));
         ephem->e = str2double(ephem_lines[2].substr(23, 19));
         ephem->cus = str2double(ephem_lines[2].substr(42, 19));
         double sqrt_A = str2double(ephem_lines[2].substr(61, 19));
-        ephem->a = sqrt_A * sqrt_A;
+        ephem->A = sqrt_A * sqrt_A;
 
         // the forth line
         ephem->toe_tow = str2double(ephem_lines[3].substr(4, 19));
         ephem->cic = str2double(ephem_lines[3].substr(23, 19));
-        ephem->omg0 = str2double(ephem_lines[3].substr(42, 19));
+        ephem->OMG0 = str2double(ephem_lines[3].substr(42, 19));
         ephem->cis = str2double(ephem_lines[3].substr(61, 19));
 
         // the fifth line
         ephem->i0 = str2double(ephem_lines[4].substr(4, 19));
         ephem->crc = str2double(ephem_lines[4].substr(23, 19));
         ephem->omg = str2double(ephem_lines[4].substr(42, 19));
-        ephem->omg_dot = str2double(ephem_lines[4].substr(61, 19));
+        ephem->OMG_dot = str2double(ephem_lines[4].substr(61, 19));
 
         // the sixth line
         ephem->i_dot = str2double(ephem_lines[5].substr(4, 19));
@@ -263,16 +263,16 @@ namespace gnss_comm
             else if (type.at(0) == 'D')
                 obs->dopp[freq_idx] = field_value;
             else if (type.at(0) == 'S')
-                obs->cn0[freq_idx] = field_value;
+                obs->CN0[freq_idx] = field_value;
             else
                 LOG(FATAL) << "Unrecognized measurement type " << type.at(0);
         }
         // fill in other fields
         uint32_t num_freqs = obs->freqs.size();
-        LOG_IF(FATAL, num_freqs < obs->cn0.size()) << "Suspicious observation field.\n";
-        std::fill_n(std::back_inserter(obs->cn0), num_freqs-obs->cn0.size(), 0);
-        LOG_IF(FATAL, num_freqs < obs->lli.size()) << "Suspicious observation field.\n";
-        std::fill_n(std::back_inserter(obs->lli), num_freqs-obs->lli.size(), 0);
+        LOG_IF(FATAL, num_freqs < obs->CN0.size()) << "Suspicious observation field.\n";
+        std::fill_n(std::back_inserter(obs->CN0), num_freqs-obs->CN0.size(), 0);
+        LOG_IF(FATAL, num_freqs < obs->LLI.size()) << "Suspicious observation field.\n";
+        std::fill_n(std::back_inserter(obs->LLI), num_freqs-obs->LLI.size(), 0);
         LOG_IF(FATAL, num_freqs < obs->code.size()) << "Suspicious observation field.\n";
         std::fill_n(std::back_inserter(obs->code), num_freqs-obs->code.size(), 0);
         LOG_IF(FATAL, num_freqs < obs->psr.size()) << "Suspicious observation field.\n";
@@ -617,7 +617,7 @@ namespace gnss_comm
                         fprintf(fp, "%14.3f%2s", obs->psr[freq_idx], "");
                         fprintf(fp, "%14.3f%2s", obs->cp[freq_idx], "");
                         fprintf(fp, "%14.3f%2s", obs->dopp[freq_idx], "");
-                        fprintf(fp, "%14.3f%2s", obs->cn0[freq_idx], "");
+                        fprintf(fp, "%14.3f%2s", obs->CN0[freq_idx], "");
                     }
                 }
                 fprintf(fp, "\n");

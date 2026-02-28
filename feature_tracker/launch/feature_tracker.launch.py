@@ -20,7 +20,7 @@ def generate_launch_description():
         Node(
             package='gvins_feature_tracker',    
             executable='feature_tracker_node',
-            name='my_node',
+            name='feature_tracker_node',
             parameters=[{'config_file': LaunchConfiguration('config_file')}],
             ros_arguments=['--log-level', log_level]
             # parameters=[{'config_file': 'config/visensor_f9p/visensor_left_f9p_config.yaml'}],

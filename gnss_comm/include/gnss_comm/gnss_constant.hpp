@@ -330,14 +330,14 @@ namespace gnss_comm
         uint32_t    week;
         uint32_t    iodc;
         uint32_t    code;
-        double      a, e, i0, omg, omg0, m0, delta_n, omg_dot, i_dot;       /* SV orbit parameters */
+        double      A, e, i0, omg, OMG0, M0, delta_n, OMG_dot, i_dot;       /* SV orbit parameters */
         double      cuc, cus, crc, crs, cic, cis;
         double      af0, af1, af2;          /* SV clock parameters */
         double      tgd[2];                 /* group delay parameters */
                                             /* GPS    :tgd[0]=TGD */
                                             /* GAL    :tgd[0]=BGD E5a/E1,tgd[1]=BGD E5b/E1 */
                                             /* BDS    :tgd[0]=BGD1,tgd[1]=BGD2 */
-        double a_dot, n_dot;                /* Adot,ndot for CNAV */
+        double A_dot, n_dot;                /* Adot,ndot for CNAV */
     };
     typedef std::shared_ptr<Ephem> EphemPtr;
 
@@ -346,8 +346,8 @@ namespace gnss_comm
         gtime_t     time;                                /* receiver sampling time (GPST) */
         uint32_t    sat;                                 /* satellite number */
         std::vector<double> freqs;                       /* received satellite frequencies */
-        std::vector<double> cn0;                         /* signal strength */
-        std::vector<uint8_t> lli;                        /* signal lost-lock indictor */
+        std::vector<double> CN0;                         /* signal strength */
+        std::vector<uint8_t> LLI;                        /* signal lost-lock indictor */
         std::vector<uint8_t> code;                       /* code indicator (CODE_???) */
         std::vector<double> psr;                         /* observation data pseudorange (m) */
         std::vector<double> psr_std;                     /* pseudorange std (m) */

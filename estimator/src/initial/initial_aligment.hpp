@@ -17,7 +17,7 @@ public:
     double t;
     Eigen::Matrix3d R;
     Eigen::Vector3d T;
-    IntegrationBase *per_integration;
+    IntegrationBase *pre_integration;
     bool is_key_frame;
 };
 

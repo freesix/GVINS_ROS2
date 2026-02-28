@@ -1,0 +1,94 @@
+cmake_minimum_required(VERSION 3.8)
+project(gnss_comm)
+
+cmake_policy(SET CMP0146 OLD)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Glog REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/GnssTimeMsg.msg"
+  "msg/GnssEphemMsg.msg"
+  "msg/GnssGloEphemMsg.msg"
+  "msg/GnssMeasMsg.msg"
+  "msg/GnssObsMsg.msg"
+  "msg/GnssBestXYZMsg.msg"
+  "msg/GnssPVTSolnMsg.msg"
+  "msg/GnssSvsMsg.msg"
+  "msg/GnssTimePulseInfoMsg.msg"
+  "msg/StampedFloat64Array.msg"
+  DEPENDENCIES std_msgs
+)
+
+include_directories(
+  include
+  ${EIGEN3_INCLUDE_DIR}
+  ${GLOG_INCLUDE_DIR}
+)
+
+file(GLOB_RECURSE source_files ${PROJECT_SOURCE_DIR}/src/*.cpp)
+add_library(gnss_comm_lib SHARED ${source_files})
+
+set_target_properties(gnss_comm_lib PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib"
+  ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib"
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib"
+  OUTPUT_NAME "gnss_comm_lib"
+)
+
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
+target_link_libraries(gnss_comm_lib PUBLIC "${cpp_typesupport_target}")
+
+ament_target_dependencies(gnss_comm_lib
+  PUBLIC
+  rclcpp
+  std_msgs
+  Eigen3
+  Glog
+)
+
+target_link_libraries(gnss_comm_lib PUBLIC ${GLOG_LIBRARIES})
+
+install(DIRECTORY include/
+  DESTINATION include/
+)
+
+install(
+  TARGETS gnss_comm_lib
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+  INCLUDES DESTINATION include
+)
+
+install(
+  EXPORT export_${PROJECT_NAME}
+  FILE "${PROJECT_NAME}Targets.cmake"
+  NAMESPACE "${PROJECT_NAME}::"
+  DESTINATION "share/${PROJECT_NAME}/cmake"
+)
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_include_directories(include)
+ament_export_libraries(gnss_comm_lib)
+ament_export_dependencies(
+  rclcpp
+  std_msgs
+  Eigen3
+  Glog
+  rosidl_default_generators
+)
+
+ament_package()

@@ -26,7 +26,8 @@ static double sum_of_path = 0;
 static Eigen::Vector3d last_path(0.0, 0.0, 0.0);
 
 void registerPub(rclcpp::Node::SharedPtr n)
-{
+{   
+    pub_latest_odometry = n->create_publisher<nav_msgs::msg::Odometry>("imu_propagate", 1000);
     pub_path = n->create_publisher<nav_msgs::msg::Path>("path", 1000);
     pub_odometry = n->create_publisher<nav_msgs::msg::Odometry>("odometry", 1000);
     pub_point_cloud = n->create_publisher<sensor_msgs::msg::PointCloud>("point_cloud", 1000);

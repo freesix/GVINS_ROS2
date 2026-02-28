@@ -21,10 +21,10 @@ void solveGyroscopeBias(std::map<double, ImageFrame> &all_image_frame, Eigen::Ve
         // R_ij = (R^c0_bk)^-1 * (R^c0_bk+1) 转换为四元数 q_ij = (q^c0_bk)^-1 * (q^c0_bk+1)
         Eigen::Quaterniond q_ij(frame_i->second.R.transpose() * frame_j->second.R); // 纯视觉里程计求解的i到j的旋转
         // tmp_A = J_j_bw 雅可比，没有算上偏置的预积分雅可比
-        tmp_A = frame_j->second.per_integration->jacobian.template block<3, 3>(O_R, O_BG);
+        tmp_A = frame_j->second.pre_integration->jacobian.template block<3, 3>(O_R, O_BG);
         //tmp_b = 2 * (r^bk_bk+1)^-1 * (q^c0_bk)^-1 * (q^c0_bk+1)
         //      = 2 * (r^bk_bk+1)^-1 * q_ij
-        tmp_b = 2 * (frame_j->second.per_integration->delta_q.inverse() * q_ij).vec();
+        tmp_b = 2 * (frame_j->second.pre_integration->delta_q.inverse() * q_ij).vec();
         //tmp_A * delta_bg = tmp_b
         A += tmp_A.transpose() * tmp_A; // 累计雅可比
         b += tmp_A.transpose() * tmp_b; // 累计误差
@@ -36,9 +36,9 @@ void solveGyroscopeBias(std::map<double, ImageFrame> &all_image_frame, Eigen::Ve
         Bgs[i] += delta_bg;
     }
     // 更新偏置后重新计算积分
-    for(frame_i = all_image_frame.begin(); next(frame_j) != all_image_frame.end(); frame_i++){
+    for(frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++){
         frame_j = next(frame_i);
-        frame_j->second.per_integration->repropagate(Eigen::Vector3d::Zero(), Bgs[0]);
+        frame_j->second.pre_integration->repropagate(Eigen::Vector3d::Zero(), Bgs[0]);
     }
 }
 /**
@@ -82,24 +82,24 @@ void RefineGravity(std::map<double, ImageFrame> &all_image_frame, Eigen::Vector3
         Eigen::MatrixXd lxly(3, 2);
         lxly = TangentBasis(g0); // 求g0的切线空间，构成一个正交基
         int i = 0; 
-        for(frame_i = all_image_frame.begin(); next(frame_j) != all_image_frame.end(); frame_i++, i++){
+        for(frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++, i++){
             frame_j = next(frame_i);
             Eigen::MatrixXd tmp_A(6, 9);
             tmp_A.setZero();
             Eigen::VectorXd tmp_b(6);
             tmp_b.setZero();
 
-            double dt = frame_j->second.per_integration->sum_dt;
+            double dt = frame_j->second.pre_integration->sum_dt;
 
             tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();
             tmp_A.block<3, 2>(0, 6) = frame_i->second.R.transpose() * dt * dt / 2 * Eigen::Matrix3d::Identity() * lxly;
             tmp_A.block<3, 1>(0, 8) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0;     
-            tmp_b.block<3, 1>(0, 0) = frame_j->second.per_integration->delta_p + frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0] - frame_i->second.R.transpose() * dt * dt / 2 * g0;
+            tmp_b.block<3, 1>(0, 0) = frame_j->second.pre_integration->delta_p + frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0] - frame_i->second.R.transpose() * dt * dt / 2 * g0;
 
             tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();
             tmp_A.block<3, 3>(3, 3) = frame_i->second.R.transpose() * frame_j->second.R;
             tmp_A.block<3, 2>(3, 6) = frame_i->second.R.transpose() * dt * Eigen::Matrix3d::Identity() * lxly;
-            tmp_b.block<3, 1>(3, 0) = frame_j->second.per_integration->delta_v - frame_i->second.R.transpose() * dt * Eigen::Matrix3d::Identity() * g0;        
+            tmp_b.block<3, 1>(3, 0) = frame_j->second.pre_integration->delta_v - frame_i->second.R.transpose() * dt * Eigen::Matrix3d::Identity() * g0;        
 
             Eigen::Matrix<double, 6, 6> cov_inv = Eigen::Matrix<double, 6, 6>::Zero();
             //cov.block<6, 6>(0, 0) = IMU_cov[i + 1];
@@ -155,17 +155,17 @@ bool LinearAlignment(std::map<double, ImageFrame> &all_image_frame, Eigen::Vecto
         Eigen::VectorXd tmp_b(6);
         tmp_b.setZero();
 
-        double dt = frame_j->second.per_integration->sum_dt;
+        double dt = frame_j->second.pre_integration->sum_dt;
 
         tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();
         tmp_A.block<3, 3>(0, 6) = frame_i->second.R.transpose() * dt * dt / 2 * Eigen::Matrix3d::Identity();
         tmp_A.block<3, 1>(0, 9) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0;     
-        tmp_b.block<3, 1>(0, 0) = frame_j->second.per_integration->delta_p + frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0];
+        tmp_b.block<3, 1>(0, 0) = frame_j->second.pre_integration->delta_p + frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0];
         //cout << "delta_p   " << frame_j->second.pre_integration->delta_p.transpose() << endl;
         tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();
         tmp_A.block<3, 3>(3, 3) = frame_i->second.R.transpose() * frame_j->second.R;
         tmp_A.block<3, 3>(3, 6) = frame_i->second.R.transpose() * dt * Eigen::Matrix3d::Identity();
-        tmp_b.block<3, 1>(3, 0) = frame_j->second.per_integration->delta_v;
+        tmp_b.block<3, 1>(3, 0) = frame_j->second.pre_integration->delta_v;
         //cout << "delta_v   " << frame_j->second.pre_integration->delta_v.transpose() << endl;
 
         Eigen::Matrix<double, 6, 6> cov_inv = Eigen::Matrix<double, 6, 6>::Zero();

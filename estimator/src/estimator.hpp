@@ -151,7 +151,7 @@ public:
     std::vector<double *> last_marginalization_parameter_blocks;
 
     std::map<double, ImageFrame> all_image_frame; // 滑动窗口中所有图像帧
-    IntegrationBase *tmp_pre_integration; // 用于在创建ImageFrame对象时，把指针赋给imageframe.per_integration
+    IntegrationBase *tmp_pre_integration; // 用于在创建ImageFrame对象时，把指针赋给imageframe.pre_integration
 
     bool first_optimization;
 

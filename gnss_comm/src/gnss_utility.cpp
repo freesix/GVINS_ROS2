@@ -29,7 +29,7 @@
 *         Copyright (c) 2007-2020, T. Takasu, All rights reserved.
 */
 
-#include "gnss_utility.hpp"
+#include "gnss_comm/gnss_utility.hpp"
 
 namespace gnss_comm
 {
@@ -412,9 +412,9 @@ namespace gnss_comm
         else if (tk < -WEEK_SECONDS/2)
             tk += WEEK_SECONDS;
 
-        double n0 = sqrt(MU / pow(ephem_ptr->a, 3));     // mean motion angular velocity (rad/sec)
+        double n0 = sqrt(MU / pow(ephem_ptr->A, 3));     // mean motion angular velocity (rad/sec)
         double n = n0 + ephem_ptr->delta_n;              // corrected mean motion
-        double Mk = ephem_ptr->m0 + n * tk;
+        double Mk = ephem_ptr->M0 + n * tk;
         double Ek = Kepler(Mk, ephem_ptr->e);                     // solve Kepler equation for eccentric anomaly
 
         double dt = time_diff(curr_time, ephem_ptr->toc);
@@ -427,7 +427,7 @@ namespace gnss_comm
             dt -= ephem_ptr->af0 + ephem_ptr->af1*dt + ephem_ptr->af2*dt*dt;
         
         double dtsv = ephem_ptr->af0 + ephem_ptr->af1 * dt + ephem_ptr->af2 * dt * dt;
-        double rel_dt = -2.0 * sqrt(MU)/LIGHT_SPEED/LIGHT_SPEED * ephem_ptr->e * sqrt(ephem_ptr->a) * sin(Ek);
+        double rel_dt = -2.0 * sqrt(MU)/LIGHT_SPEED/LIGHT_SPEED * ephem_ptr->e * sqrt(ephem_ptr->A) * sin(Ek);
         rel_dt = 0;
         dtsv += rel_dt;
         // LOG(INFO) << "dtsv is " << std::setprecision(10) << dtsv;
@@ -475,9 +475,9 @@ namespace gnss_comm
         //           << std::setprecision(10) << curr_time.time
         //           << ", and toe is " << ephem_ptr->toe.time;
 
-        double n0 = sqrt(mu / pow(ephem_ptr->a, 3));     // mean motion angular velocity (rad/sec)
+        double n0 = sqrt(mu / pow(ephem_ptr->A, 3));     // mean motion angular velocity (rad/sec)
         double n = n0 + ephem_ptr->delta_n;              // corrected mean motion
-        double Mk = ephem_ptr->m0 + n * tk;
+        double Mk = ephem_ptr->M0 + n * tk;
         double Ek = Kepler(Mk, ephem_ptr->e);                     // solve Kepler equation for eccentric anomaly
         double sin_Ek = sin(Ek), cos_Ek = cos(Ek);
         double vk = atan2(sqrt(1 - ephem_ptr->e*ephem_ptr->e) * sin_Ek, cos_Ek - ephem_ptr->e);
@@ -489,7 +489,7 @@ namespace gnss_comm
         double delta_rk = ephem_ptr->crs * sin_2phi + ephem_ptr->crc * cos_2phi;  // radius correction
         double delta_ik = ephem_ptr->cis * sin_2phi + ephem_ptr->cic * cos_2phi;  // correction to inclination
         double uk = phi + delta_uk;                                             // corrected latitude
-        double rk = ephem_ptr->a * (1 - ephem_ptr->e * cos_Ek) + delta_rk;                // corrected radius
+        double rk = ephem_ptr->A * (1 - ephem_ptr->e * cos_Ek) + delta_rk;                // corrected radius
         double ik = ephem_ptr->i0 + ephem_ptr->i_dot * tk + delta_ik;             // corrected inclination
         double sin_ik = sin(ik), cos_ik = cos(ik);
 
@@ -500,7 +500,7 @@ namespace gnss_comm
 
         if (sys == SYS_BDS && prn <= 5)     // BDS GEO satellite
         {
-            double OMG_k = ephem_ptr->omg0 + ephem_ptr->omg_dot * tk - earth_omg * toe_tow;
+            double OMG_k = ephem_ptr->OMG0 + ephem_ptr->OMG_dot * tk - earth_omg * toe_tow;
             double sin_OMG_k = sin(OMG_k), cos_OMG_k = cos(OMG_k);
             double xg = xk_prime * cos_OMG_k - yk_prime * cos_ik * sin_OMG_k;
             double yg = xk_prime * sin_OMG_k + yk_prime * cos_ik * cos_OMG_k;
@@ -512,7 +512,7 @@ namespace gnss_comm
         }
         else
         {
-            double OMG_k = ephem_ptr->omg0 + (ephem_ptr->omg_dot - earth_omg) * tk 
+            double OMG_k = ephem_ptr->OMG0 + (ephem_ptr->OMG_dot - earth_omg) * tk 
                     - earth_omg * toe_tow;
             double sin_OMG_k = sin(OMG_k), cos_OMG_k = cos(OMG_k);
             sv_pos.x() = xk_prime * cos_OMG_k - yk_prime * cos_ik * sin_OMG_k;
@@ -523,7 +523,7 @@ namespace gnss_comm
         double dt = time_diff(curr_time, ephem_ptr->toc);
         double dts = ephem_ptr->af0 + ephem_ptr->af1 * dt + ephem_ptr->af2 * dt * dt;
         // relativity correction
-        dts -= 2.0 * sqrt(mu * ephem_ptr->a) * ephem_ptr->e * sin_Ek / LIGHT_SPEED / LIGHT_SPEED;
+        dts -= 2.0 * sqrt(mu * ephem_ptr->A) * ephem_ptr->e * sin_Ek / LIGHT_SPEED / LIGHT_SPEED;
 
         if (svdt)  *svdt = dts;
         
@@ -556,9 +556,9 @@ namespace gnss_comm
             case SYS_GLO: mu = MU;     earth_omg = EARTH_OMG_GLO; break;
             case SYS_BDS: mu = MU;     earth_omg = EARTH_OMG_BDS; break;
         }
-        double n0 = sqrt(mu / pow(ephem_ptr->a, 3));     // mean motion angular velocity (rad/sec)
+        double n0 = sqrt(mu / pow(ephem_ptr->A, 3));     // mean motion angular velocity (rad/sec)
         double n = n0 + ephem_ptr->delta_n;              // corrected mean motion
-        double Mk = ephem_ptr->m0 + n * tk;
+        double Mk = ephem_ptr->M0 + n * tk;
         double Ek = Kepler(Mk, ephem_ptr->e);                     // solve Kepler equation for eccentric anomaly
         double sin_Ek = sin(Ek), cos_Ek = cos(Ek);
         double Ek_dot = n / (1 - ephem_ptr->e*cos_Ek);
@@ -573,7 +573,7 @@ namespace gnss_comm
         double delta_ik_dot = 2 * vk_dot * (ephem_ptr->cis*cos_2phi - ephem_ptr->cic*sin_2phi);
 
         double uk_dot   = vk_dot + delta_uk_dot;
-        double rk_dot   = ephem_ptr->a * ephem_ptr->e * Ek_dot * sin_Ek + delta_rk_dot;
+        double rk_dot   = ephem_ptr->A * ephem_ptr->e * Ek_dot * sin_Ek + delta_rk_dot;
         double ik_dot   = ephem_ptr->i_dot + delta_ik_dot;
 
 
@@ -581,7 +581,7 @@ namespace gnss_comm
         double delta_rk = ephem_ptr->crs * sin_2phi + ephem_ptr->crc * cos_2phi;  // radius correction
         double delta_ik = ephem_ptr->cis * sin_2phi + ephem_ptr->cic * cos_2phi;  // correction to inclination
         double uk = phi + delta_uk;                                     // corrected latitude
-        double rk = ephem_ptr->a * (1 - ephem_ptr->e * cos_Ek) + delta_rk;        // corrected radius
+        double rk = ephem_ptr->A * (1 - ephem_ptr->e * cos_Ek) + delta_rk;        // corrected radius
         double ik = ephem_ptr->i0 + ephem_ptr->i_dot * tk + delta_ik;             // corrected inclination
         double sin_ik = sin(ik), cos_ik = cos(ik);
 
@@ -596,9 +596,9 @@ namespace gnss_comm
 
         if (sys == SYS_BDS && prn <= 5)     // BDS GEO satellite
         {
-            double OMG_k = ephem_ptr->omg0 + ephem_ptr->omg_dot * tk - earth_omg * toe_tow;
+            double OMG_k = ephem_ptr->OMG0 + ephem_ptr->OMG_dot * tk - earth_omg * toe_tow;
             double sin_OMG_k = sin(OMG_k), cos_OMG_k = cos(OMG_k);
-            double OMGk_dot = ephem_ptr->omg_dot;
+            double OMGk_dot = ephem_ptr->OMG_dot;
             double term1 = xk_prime_dot - yk_prime*OMGk_dot*cos_ik;
             double term2 = xk_prime*OMGk_dot + yk_prime_dot*cos_ik-yk_prime*ik_dot*sin_ik;
             double xg = xk_prime * cos_OMG_k - yk_prime * cos_ik * sin_OMG_k;
@@ -618,10 +618,10 @@ namespace gnss_comm
         }
         else
         {
-            double OMG_k = ephem_ptr->omg0 + (ephem_ptr->omg_dot - earth_omg) * tk 
+            double OMG_k = ephem_ptr->OMG0 + (ephem_ptr->OMG_dot - earth_omg) * tk 
                     - earth_omg * toe_tow;
             double sin_OMG_k = sin(OMG_k), cos_OMG_k = cos(OMG_k);
-            double OMGk_dot = ephem_ptr->omg_dot - earth_omg;
+            double OMGk_dot = ephem_ptr->OMG_dot - earth_omg;
             double term1 = xk_prime_dot - yk_prime*OMGk_dot*cos_ik;
             double term2 = xk_prime*OMGk_dot + yk_prime_dot*cos_ik-yk_prime*ik_dot*sin_ik;
             sv_vel.x() = term1 * cos_OMG_k - term2 * sin_OMG_k;
@@ -632,7 +632,7 @@ namespace gnss_comm
         double dt = time_diff(curr_time, ephem_ptr->toc);
         double ddts = ephem_ptr->af1 + 2.0 * ephem_ptr->af2 * dt;
         // relativity correction
-        ddts -= 2.0 * sqrt(mu * ephem_ptr->a) * ephem_ptr->e * cos_Ek * Ek_dot / LIGHT_SPEED / LIGHT_SPEED;
+        ddts -= 2.0 * sqrt(mu * ephem_ptr->A) * ephem_ptr->e * cos_Ek * Ek_dot / LIGHT_SPEED / LIGHT_SPEED;
 
         if (svddt)  *svddt = ddts;
         

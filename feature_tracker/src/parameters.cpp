@@ -40,7 +40,7 @@ void readParameters(rclcpp::Node::SharedPtr n)
     // config_file = "/home/freesix/GVINS_ROS2_WS/src/GVINS/config/visensor_f9p/visensor_left_f9p_config.yaml";
     // n->get_parameter("config_file", config_file);
     config_file = readParam<std::string>(n, "config_file");
-    std::cout<<"config_file: "<<config_file<<std::endl;
+    RCLCPP_INFO(n->get_logger(), "read config file from %s", config_file.c_str());
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {

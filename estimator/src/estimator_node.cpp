@@ -123,15 +123,16 @@ bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_ms
 {   
     // 当imu、feature、gnss数据有一个为空直接返回false
     if (imu_buf.empty() || feature_buf.empty() || (GNSS_ENABLE && gnss_meas_buf.empty()))
+        // RCUTILS_LOG_INFO("only should happen at the beginning");
         return false;
 
-    RCUTILS_LOG_INFO("imu_buf: %d", imu_buf.size());
+    // RCUTILS_LOG_INFO("imu_buf: %ld", imu_buf.size());
     // 将imu和图像的时间戳尽量对齐，front_feature_ts指feature_buf中的第一帧图像时间
     double front_feature_ts = stamp2Sec(feature_buf.front()->header.stamp);
 
-    if (!stamp2Sec(imu_buf.back()->header.stamp) > front_feature_ts)
+    if (!(stamp2Sec(imu_buf.back()->header.stamp) > front_feature_ts))
     {
-        //ROS_WARN("wait for imu, only should happen at the beginning");
+        RCUTILS_LOG_INFO("wait for imu, only should happen at the beginning");
         sum_of_wait++;
         return false;
     }
@@ -172,7 +173,7 @@ bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_ms
     feature_buf.pop();
     // 将早于当前帧图像晚于前一帧图像之间的imu和晚于当前图像的第一帧imu加入imu_msg和当前图像对齐(多帧imu对一帧图像)
     while (stamp2Sec(imu_buf.front()->header.stamp) < stamp2Sec(img_msg->header.stamp) + estimator_ptr->td)
-    {
+    {   
         imu_msg.emplace_back(imu_buf.front());
         imu_buf.pop();
     }
@@ -183,7 +184,8 @@ bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_ms
 }
 
 void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
-{
+{   
+    // RCUTILS_LOG_INFO("imu_msg time: %f", stamp2Sec(imu_msg->header.stamp));
     if (stamp2Sec(imu_msg->header.stamp) <= last_imu_t)
     {
         RCUTILS_LOG_WARN("imu message in disorder!");
@@ -209,13 +211,13 @@ void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
     }
 }
 
-void gnss_ephem_callback(const gnss_interfaces::msg::GnssEphemMsg::SharedPtr ephem_msg)
+void gnss_ephem_callback(const gnss_comm::msg::GnssEphemMsg::SharedPtr ephem_msg)
 {
     EphemPtr ephem = msg2ephem(ephem_msg);
     estimator_ptr->inputEphem(ephem);
 }
 
-void gnss_glo_ephem_callback(const gnss_interfaces::msg::GnssGloEphemMsg::SharedPtr glo_ephem_msg)
+void gnss_glo_ephem_callback(const gnss_comm::msg::GnssGloEphemMsg::SharedPtr glo_ephem_msg)
 {
     GloEphemPtr glo_ephem = msg2glo_ephem(glo_ephem_msg);
     estimator_ptr->inputEphem(glo_ephem);
@@ -225,22 +227,23 @@ void gnss_glo_ephem_callback(const gnss_interfaces::msg::GnssGloEphemMsg::Shared
  * @details 考虑电离层和对流层对gnss传播的影响，后面会加上卫星仰角参数进行建模，因为仰角小
  * 的卫星在电离层中传播的时间较长，对定位影响大
 */
-void gnss_iono_params_callback(const gnss_interfaces::msg::StampedFloat64Array::SharedPtr iono_msg)
+void gnss_iono_params_callback(const gnss_comm::msg::StampedFloat64Array::SharedPtr iono_msg)
 {
     double ts = stamp2Sec(iono_msg->header.stamp);
+    // RCUTILS_LOG_INFO("iono time: %f", ts);
     std::vector<double> iono_params;
     std::copy(iono_msg->data.begin(), iono_msg->data.end(), std::back_inserter(iono_params));
     assert(iono_params.size() == 8);
     estimator_ptr->inputIonoParams(ts, iono_params);
 }
 
-void gnss_meas_callback(const gnss_interfaces::msg::GnssMeasMsg::SharedPtr meas_msg)
+void gnss_meas_callback(const gnss_comm::msg::GnssMeasMsg::SharedPtr meas_msg)
 {
     std::vector<ObsPtr> gnss_meas = msg2meas(meas_msg);
 
     latest_gnss_time = time2sec(gnss_meas[0]->time);
 
-    // cerr << "gnss ts is " << std::setprecision(20) << time2sec(gnss_meas[0]->time) << endl;
+    // RCLCPP_INFO_STREAM(rclcpp::get_logger(""), "gnss ts is " << std::setprecision(20) << time2sec(gnss_meas[0]->time));
     if (!time_diff_valid)   return;
 
     m_buf.lock();
@@ -264,7 +267,7 @@ void feature_callback(const sensor_msgs::msg::PointCloud::SharedPtr feature_msg)
             else
                 skip_parameter = 1 - (feature_msg_counter%2);   // skip next frame and afterwards
         }
-        // cerr << "feature counter is " << feature_msg_counter << ", skip parameter is " << int(skip_parameter) << endl;
+        RCLCPP_INFO_STREAM(rclcpp::get_logger(""), "feature counter is " << feature_msg_counter << ", skip parameter is " << int(skip_parameter));
         tmp_last_feature_time = this_feature_ts;
     }
 
@@ -296,7 +299,7 @@ void local_trigger_info_callback(const estimator_interfaces::msg::LocalSensorExt
     }
 }
 
-void gnss_tp_info_callback(const gnss_interfaces::msg::GnssTimePulseInfoMsg::SharedPtr tp_msg)
+void gnss_tp_info_callback(const gnss_comm::msg::GnssTimePulseInfoMsg::SharedPtr tp_msg)
 {   // 先把gnss时间转化为gtime_t数据结构
     gtime_t tp_time = gpst2time(tp_msg->time.week, tp_msg->time.tow);
     // 根据不同卫星再进一步处理时间
@@ -409,7 +412,6 @@ void process()
         if (GNSS_ENABLE && !gnss_msg.empty())
             estimator_ptr->processGNSS(gnss_msg);
 
-        RCUTILS_LOG_DEBUG("processing vision data with stamp %f \n", stamp2Sec(img_msg->header.stamp));
         // 对前端特征点信息处理记录并送入porcessImage
         TicToc t_s;
         std::map<int, std::vector<std::pair<int, Eigen::Matrix<double, 7, 1>>>> image;
@@ -467,6 +469,7 @@ int main(int argc, char** argv){
 
     next_pulse_time_valid = false;
     time_diff_valid = false;
+    // time_diff_valid = true;
     latest_gnss_time = -1;
     tmp_last_feature_time = -1;
     feature_msg_counter = 0;
@@ -485,24 +488,24 @@ int main(int argc, char** argv){
 
     auto sub_restart = n->create_subscription<std_msgs::msg::Bool>("restart",
         rclcpp::QoS(rclcpp::KeepLast(2000)), restart_callback);
-    rclcpp::Subscription<gnss_interfaces::msg::GnssEphemMsg>::SharedPtr sub_ephem;
-    rclcpp::Subscription<gnss_interfaces::msg::GnssGloEphemMsg>::SharedPtr sub_glo_ephem;
-    rclcpp::Subscription<gnss_interfaces::msg::GnssMeasMsg>::SharedPtr sub_gnss_meas;
-    rclcpp::Subscription<gnss_interfaces::msg::StampedFloat64Array>::SharedPtr sub_gnss_iono_params;
-    rclcpp::Subscription<gnss_interfaces::msg::GnssTimePulseInfoMsg>::SharedPtr sub_gnss_time_pluse_info;
+    rclcpp::Subscription<gnss_comm::msg::GnssEphemMsg>::SharedPtr sub_ephem;
+    rclcpp::Subscription<gnss_comm::msg::GnssGloEphemMsg>::SharedPtr sub_glo_ephem;
+    rclcpp::Subscription<gnss_comm::msg::GnssMeasMsg>::SharedPtr sub_gnss_meas;
+    rclcpp::Subscription<gnss_comm::msg::StampedFloat64Array>::SharedPtr sub_gnss_iono_params;
+    rclcpp::Subscription<gnss_comm::msg::GnssTimePulseInfoMsg>::SharedPtr sub_gnss_time_pluse_info;
     rclcpp::Subscription<estimator_interfaces::msg::LocalSensorExternalTrigger>::SharedPtr sub_local_trigger_info;
     
     if(GNSS_ENABLE){
-        sub_ephem = n->create_subscription<gnss_interfaces::msg::GnssEphemMsg>(GNSS_EPHEM_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)), gnss_ephem_callback);
-        sub_glo_ephem = n->create_subscription<gnss_interfaces::msg::GnssGloEphemMsg>(GNSS_GLO_EPHEM_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)),
+        sub_ephem = n->create_subscription<gnss_comm::msg::GnssEphemMsg>(GNSS_EPHEM_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)), gnss_ephem_callback);
+        sub_glo_ephem = n->create_subscription<gnss_comm::msg::GnssGloEphemMsg>(GNSS_GLO_EPHEM_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)),
             gnss_glo_ephem_callback);
-        sub_gnss_meas = n->create_subscription<gnss_interfaces::msg::GnssMeasMsg>(GNSS_MEAS_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)), 
+        sub_gnss_meas = n->create_subscription<gnss_comm::msg::GnssMeasMsg>(GNSS_MEAS_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)), 
             gnss_meas_callback);
-        sub_gnss_iono_params = n->create_subscription<gnss_interfaces::msg::StampedFloat64Array>(GNSS_IONO_PARAMS_TOPIC,
+        sub_gnss_iono_params = n->create_subscription<gnss_comm::msg::StampedFloat64Array>(GNSS_IONO_PARAMS_TOPIC,
             rclcpp::QoS(rclcpp::KeepLast(100)), gnss_iono_params_callback);
         
         if(GNSS_LOCAL_ONLINE_SYNC){    
-            sub_gnss_time_pluse_info = n->create_subscription<gnss_interfaces::msg::GnssTimePulseInfoMsg>(GNSS_TP_INFO_TOPIC,
+            sub_gnss_time_pluse_info = n->create_subscription<gnss_comm::msg::GnssTimePulseInfoMsg>(GNSS_TP_INFO_TOPIC,
                 rclcpp::QoS(rclcpp::KeepLast(100)), gnss_tp_info_callback);
                 
             sub_local_trigger_info = n->create_subscription<estimator_interfaces::msg::LocalSensorExternalTrigger>(

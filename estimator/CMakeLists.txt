@@ -17,7 +17,6 @@ find_package(tf2_ros REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(gnss_comm REQUIRED)
-find_package(gnss_interfaces REQUIRED)
 find_package(estimator_interfaces REQUIRED)
 
 find_package(OpenCV REQUIRED)
@@ -60,12 +59,12 @@ add_library(${PROJECT_NAME}_lib
     src/initial/gnss_vi_initializer.cpp
 )
 ament_target_dependencies(${PROJECT_NAME}_lib rclcpp rcpputils std_msgs sensor_msgs rosidl_default_generators
-    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm gnss_interfaces estimator_interfaces)
+    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm estimator_interfaces)
 target_link_libraries(${PROJECT_NAME}_lib ${OpenCV_LIBS} ${CERES_LIBRARIES} ${EIGEN3_LIBS})
 
 add_executable(estimator_node src/estimator_node.cpp)
 ament_target_dependencies(${PROJECT_NAME}_lib rclcpp rcpputils std_msgs sensor_msgs rosidl_default_generators
-    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm gnss_interfaces estimator_interfaces)
+    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm estimator_interfaces)
 target_link_libraries(estimator_node ${PROJECT_NAME}_lib)
 
 

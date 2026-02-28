@@ -3,7 +3,9 @@
 GnssTimeMsg time    # measurement time
 uint32 sat          # satellite ID (define by `sat_no` function in `gnss_utility.hpp`)
 float64[] freqs     # observed frequencies [Hz]
+# float64[] CN0       # carrier-to-noise density ratio (signal strength) [dB-Hz]
 float64[] cn0       # carrier-to-noise density ratio (signal strength) [dB-Hz]
+# uint8[] LLI         # lost-lock indicator (1=lost)
 uint8[] lli         # lost-lock indicator (1=lost)
 uint8[] code        # channel code
 float64[] psr       # pseudorange measurement [m]

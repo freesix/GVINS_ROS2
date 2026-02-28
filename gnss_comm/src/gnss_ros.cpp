@@ -18,13 +18,13 @@
 * along with gnss_comm. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "gnss_ros.hpp"
+#include "gnss_comm/gnss_ros.hpp"
 
 namespace gnss_comm
 {
-    gnss_interfaces::msg::GnssEphemMsg ephem2msg(const EphemPtr &ephem_ptr)
+    msg::GnssEphemMsg ephem2msg(const EphemPtr &ephem_ptr)
     {
-        gnss_interfaces::msg::GnssEphemMsg ephem_msg;
+        msg::GnssEphemMsg ephem_msg;
         uint32_t week = 0;
         double tow = 0.0;
         ephem_msg.sat = ephem_ptr->sat;
@@ -44,14 +44,18 @@ namespace gnss_comm
         ephem_msg.health = ephem_ptr->health;
         ephem_msg.code = ephem_ptr->code;
         ephem_msg.ura = ephem_ptr->ura;
-        ephem_msg.a = ephem_ptr->a;
+        // ephem_msg.A = ephem_ptr->A;
+        ephem_msg.a = ephem_ptr->A;
         ephem_msg.e = ephem_ptr->e;
         ephem_msg.i0 = ephem_ptr->i0;
         ephem_msg.omg = ephem_ptr->omg;
-        ephem_msg.omg0 = ephem_ptr->omg0;
-        ephem_msg.m0 = ephem_ptr->m0;
+        // ephem_msg.OMG0 = ephem_ptr->OMG0;
+        ephem_msg.omg0 = ephem_ptr->OMG0;
+        // ephem_msg.M0 = ephem_ptr->M0;
+        ephem_msg.m0 = ephem_ptr->M0;
         ephem_msg.delta_n = ephem_ptr->delta_n;
-        ephem_msg.omg_dot = ephem_ptr->omg_dot;
+        // ephem_msg.OMG_dot = ephem_ptr->OMG_dot;
+        ephem_msg.omg_dot = ephem_ptr->OMG_dot;
         ephem_msg.i_dot = ephem_ptr->i_dot;
         ephem_msg.cuc = ephem_ptr->cuc;
         ephem_msg.cus = ephem_ptr->cus;
@@ -64,12 +68,13 @@ namespace gnss_comm
         ephem_msg.af2 = ephem_ptr->af2;
         ephem_msg.tgd0 = ephem_ptr->tgd[0];
         ephem_msg.tgd1 = ephem_ptr->tgd[1];
-        ephem_msg.a_dot = ephem_ptr->a_dot;
+        // ephem_msg.A_dot = ephem_ptr->A_dot;
+        ephem_msg.a_dot = ephem_ptr->A_dot;
         ephem_msg.n_dot = ephem_ptr->n_dot;
         return ephem_msg;
     }
 
-    EphemPtr msg2ephem(const gnss_interfaces::msg::GnssEphemMsg::ConstSharedPtr &gnss_ephem_msg)
+    EphemPtr msg2ephem(const msg::GnssEphemMsg::ConstPtr &gnss_ephem_msg)
     {
         EphemPtr ephem(new Ephem());
         ephem->sat = gnss_ephem_msg->sat;
@@ -83,14 +88,18 @@ namespace gnss_comm
         ephem->health = gnss_ephem_msg->health;
         ephem->code = gnss_ephem_msg->code;
         ephem->ura = gnss_ephem_msg->ura;
-        ephem->a = gnss_ephem_msg->a;
+        // ephem->A = gnss_ephem_msg->A;
+        ephem->A = gnss_ephem_msg->a;
         ephem->e = gnss_ephem_msg->e;
         ephem->i0 = gnss_ephem_msg->i0;
         ephem->omg = gnss_ephem_msg->omg;
-        ephem->omg0 = gnss_ephem_msg->omg0;
-        ephem->m0 = gnss_ephem_msg->m0;
+        // ephem->OMG0 = gnss_ephem_msg->OMG0;
+        ephem->OMG0 = gnss_ephem_msg->omg0;
+        // ephem->M0 = gnss_ephem_msg->M0;
+        ephem->M0 = gnss_ephem_msg->m0;
         ephem->delta_n = gnss_ephem_msg->delta_n;
-        ephem->omg_dot = gnss_ephem_msg->omg_dot;
+        // ephem->OMG_dot = gnss_ephem_msg->OMG_dot;
+        ephem->OMG_dot = gnss_ephem_msg->omg_dot;
         ephem->i_dot = gnss_ephem_msg->i_dot;
         ephem->cuc = gnss_ephem_msg->cuc;
         ephem->cus = gnss_ephem_msg->cus;
@@ -103,14 +112,15 @@ namespace gnss_comm
         ephem->af2 = gnss_ephem_msg->af2;
         ephem->tgd[0] = gnss_ephem_msg->tgd0;
         ephem->tgd[1] = gnss_ephem_msg->tgd1;
-        ephem->a_dot = gnss_ephem_msg->a_dot;
+        // ephem->A_dot = gnss_ephem_msg->A_dot;
+        ephem->A_dot = gnss_ephem_msg->a_dot;
         ephem->n_dot = gnss_ephem_msg->n_dot;
         return ephem;
     }
 
-    gnss_interfaces::msg::GnssGloEphemMsg glo_ephem2msg(const GloEphemPtr &glo_ephem_ptr)
+    msg::GnssGloEphemMsg glo_ephem2msg(const GloEphemPtr &glo_ephem_ptr)
     {
-        gnss_interfaces::msg::GnssGloEphemMsg glo_ephem_msg;
+        msg::GnssGloEphemMsg glo_ephem_msg;
         uint32_t week = 0;
         double tow = 0.0;
         glo_ephem_msg.sat = glo_ephem_ptr->sat;
@@ -140,7 +150,7 @@ namespace gnss_comm
         return glo_ephem_msg;
     }
 
-    GloEphemPtr msg2glo_ephem(const gnss_interfaces::msg::GnssGloEphemMsg::ConstSharedPtr &gnss_glo_ephem_msg)
+    GloEphemPtr msg2glo_ephem(const msg::GnssGloEphemMsg::ConstPtr &gnss_glo_ephem_msg)
     {
         GloEphemPtr glo_ephem(new GloEphem());
         glo_ephem->sat = gnss_glo_ephem_msg->sat;
@@ -166,20 +176,22 @@ namespace gnss_comm
         return glo_ephem;
     }
 
-    gnss_interfaces::msg::GnssMeasMsg meas2msg(const std::vector<ObsPtr> &meas)
+    msg::GnssMeasMsg meas2msg(const std::vector<ObsPtr> &meas)
     {
-        gnss_interfaces::msg::GnssMeasMsg gnss_meas_msg;
+        msg::GnssMeasMsg gnss_meas_msg;
         for (ObsPtr obs : meas)
         {
-            gnss_interfaces::msg::GnssObsMsg obs_msg;
+            msg::GnssObsMsg obs_msg;
             uint32_t week = 0;
             double tow = time2gpst(obs->time, &week);
             obs_msg.time.week = week;
             obs_msg.time.tow = tow;
             obs_msg.sat     = obs->sat;
             obs_msg.freqs   = obs->freqs;
-            obs_msg.cn0     = obs->cn0;
-            obs_msg.lli     = obs->lli;
+            // obs_msg.CN0     = obs->CN0;
+            obs_msg.cn0     = obs->CN0;
+            // obs_msg.LLI     = obs->LLI;
+            obs_msg.lli     = obs->LLI;
             obs_msg.code    = obs->code;
             obs_msg.psr     = obs->psr;
             obs_msg.psr_std = obs->psr_std;
@@ -194,18 +206,20 @@ namespace gnss_comm
         return gnss_meas_msg;
     }
 
-    std::vector<ObsPtr> msg2meas(const gnss_interfaces::msg::GnssMeasMsg::ConstSharedPtr &gnss_meas_msg)
+    std::vector<ObsPtr> msg2meas(const msg::GnssMeasMsg::ConstPtr &gnss_meas_msg)
     {
         std::vector<ObsPtr> meas;
         for (size_t i = 0; i < gnss_meas_msg->meas.size(); ++i)
         {
-            gnss_interfaces::msg::GnssObsMsg obs_msg = gnss_meas_msg->meas[i];
+            msg::GnssObsMsg obs_msg = gnss_meas_msg->meas[i];
             ObsPtr obs(new Obs());
             obs->time       = gpst2time(obs_msg.time.week, obs_msg.time.tow);
             obs->sat        = obs_msg.sat;
             obs->freqs      = obs_msg.freqs;
-            obs->cn0        = obs_msg.cn0;
-            obs->lli        = obs_msg.lli;
+            // obs->CN0        = obs_msg.CN0;
+            obs->CN0        = obs_msg.cn0;
+            // obs->LLI        = obs_msg.LLI;
+            obs->LLI        = obs_msg.lli;
             obs->code       = obs_msg.code;
             obs->psr        = obs_msg.psr;
             obs->psr_std    = obs_msg.psr_std;
@@ -220,16 +234,16 @@ namespace gnss_comm
         return meas;
     }
 
-    gnss_interfaces::msg::GnssTimePulseInfoMsg tp_info2msg(const TimePulseInfoPtr &tp_info)
+    msg::GnssTimePulseInfoMsg tp_info2msg(const TimePulseInfoPtr &tp_info)
     {
-        gnss_interfaces::msg::GnssTimePulseInfoMsg tp_info_msg;
+        msg::GnssTimePulseInfoMsg tp_info_msg;
         tp_info_msg.time.tow = time2gpst(tp_info->time, &(tp_info_msg.time.week));
         tp_info_msg.utc_based = tp_info->utc_based;
         tp_info_msg.time_sys = tp_info->time_sys;
         return tp_info_msg;
     }
 
-    TimePulseInfoPtr msg2tp_info(const gnss_interfaces::msg::GnssTimePulseInfoMsg::ConstSharedPtr &gnss_tp_info_msg)
+    TimePulseInfoPtr msg2tp_info(const msg::GnssTimePulseInfoMsg::ConstPtr &gnss_tp_info_msg)
     {
         TimePulseInfoPtr tp_info(new TimePulseInfo());
         tp_info->time = gpst2time(gnss_tp_info_msg->time.week, gnss_tp_info_msg->time.tow);
@@ -238,9 +252,9 @@ namespace gnss_comm
         return tp_info;
     }
 
-    gnss_interfaces::msg::GnssBestXYZMsg best_xyz2msg(const BestXYZPtr &best_xyz)
+    msg::GnssBestXYZMsg best_xyz2msg(const BestXYZPtr &best_xyz)
     {
-        gnss_interfaces::msg::GnssBestXYZMsg gnss_best_xyz_msg;
+        msg::GnssBestXYZMsg gnss_best_xyz_msg;
         gnss_best_xyz_msg.header.stamp = rclcpp::Time(time2sec(best_xyz->time));
         gnss_best_xyz_msg.header.frame_id = "ECEF";
         for (size_t i = 0; i < 3; ++i)
@@ -255,9 +269,9 @@ namespace gnss_comm
         return gnss_best_xyz_msg;
     }
 
-    gnss_interfaces::msg::GnssPVTSolnMsg pvt2msg(const PVTSolutionPtr &pvt_soln)
+    msg::GnssPVTSolnMsg pvt2msg(const PVTSolutionPtr &pvt_soln)
     {
-        gnss_interfaces::msg::GnssPVTSolnMsg pvt_msg;
+        msg::GnssPVTSolnMsg pvt_msg;
         pvt_msg.time.tow = time2gpst(pvt_soln->time, &(pvt_msg.time.week));
         pvt_msg.fix_type = pvt_soln->fix_type;
         pvt_msg.valid_fix = pvt_soln->valid_fix;
@@ -278,7 +292,7 @@ namespace gnss_comm
         return pvt_msg;
     }
 
-    PVTSolutionPtr msg2pvt(const gnss_interfaces::msg::GnssPVTSolnMsg::ConstSharedPtr &pvt_msg)
+    PVTSolutionPtr msg2pvt(const msg::GnssPVTSolnMsg::ConstPtr &pvt_msg)
     {
         PVTSolutionPtr pvt_soln(new PVTSolution());
         pvt_soln->time = gpst2time(pvt_msg->time.week, pvt_msg->time.tow);
@@ -301,9 +315,9 @@ namespace gnss_comm
         return pvt_soln;
     }
 
-    gnss_interfaces::msg::GnssSvsMsg svs2msg(const std::vector<SvInfo> &svs)
+    msg::GnssSvsMsg svs2msg(const std::vector<SvInfo> &svs)
     {
-        gnss_interfaces::msg::GnssSvsMsg svs_msg;
+        msg::GnssSvsMsg svs_msg;
         if (svs.empty())    return svs_msg;
         svs_msg.header.stamp = rclcpp::Time(time2sec(svs[0].time));
         for (auto & sv : svs)

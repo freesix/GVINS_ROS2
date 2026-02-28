@@ -1,105 +1,100 @@
-#include "feature_manager.hpp"
+#include "feature_manager.h"
 
-/**
- * @brief 得到跟踪特征点最后一帧的id
-*/
 int FeaturePerId::endFrame()
 {
     return start_frame + feature_per_frame.size() - 1;
 }
 
-FeatureManager::FeatureManager(Eigen::Matrix3d _Rs[])
+FeatureManager::FeatureManager(Matrix3d _Rs[])
     : Rs(_Rs)
 {
-    for(int i=0; i<NUM_OF_CAM; i++){
+    for (int i = 0; i < NUM_OF_CAM; i++)
         ric[i].setIdentity();
-    }
 }
 
-void FeatureManager::setRic(Eigen::Matrix3d _ric[]){
-    for(int i=0; i<NUM_OF_CAM; i++){
+void FeatureManager::setRic(Matrix3d _ric[])
+{
+    for (int i = 0; i < NUM_OF_CAM; i++)
+    {
         ric[i] = _ric[i];
     }
 }
 
-void FeatureManager::clearState(){
+void FeatureManager::clearState()
+{
     feature.clear();
 }
-/**
- * @brief 得到这一帧上特征点数量
-*/
-int FeatureManager::getFeatureCount(){
+
+int FeatureManager::getFeatureCount()
+{
     int cnt = 0;
-    for(auto &it : feature){
+    for (auto &it : feature)
+    {
+
         it.used_num = it.feature_per_frame.size();
-        if(it.used_num >=2 && it.start_frame < WINDOW_SIZE - 2){
+
+        if (it.used_num >= 2 && it.start_frame < WINDOW_SIZE - 2)
+        {
             cnt++;
         }
-    }  
-    return cnt; 
+    }
+    return cnt;
 }
 
-/**
- * @brief 当前帧与之前帧进行视差比较，如果当前帧变化小，就会删去倒数第二帧，如果变化很大，就
- * 删去最旧帧，并把这一帧作为新的关键帧，保证滑窗内优化的除最后一帧可能不是关键帧外，其它均为
- * 关键帧。
- * @return true则为边缘化老帧，反之次新帧。(判断视差是否大于预定值)
-*/
-bool FeatureManager::addFeatureCheckParallax(int frame_count, const std::map<int, 
-    std::vector<std::pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td){
 
+bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td)
+{
     RCUTILS_LOG_DEBUG("input feature: %d", (int)image.size());
     RCUTILS_LOG_DEBUG("num of feature: %d", getFeatureCount());
-
-    double parallax_sum = 0; // 所有特征点视差总和
-    int parallax_num = 0; // 满足某些条件的特征点个数
-    last_track_num = 0; // 被跟踪点的个数
-    // 把当前帧图像特征点加入feature容器中，feature按照特征点id组织数据，对于每个id的特征点
-    // 记录它被滑动窗口中哪些帧观测到
-    for(auto &id_pts : image){ // 遍历每个特征点
-        FeaturePerFrame f_per_fra(id_pts.second[0].second, td); // 每一帧的属性
+    double parallax_sum = 0;
+    int parallax_num = 0;
+    last_track_num = 0;
+    for (auto &id_pts : image)
+    {
+        FeaturePerFrame f_per_fra(id_pts.second[0].second, td);
 
         int feature_id = id_pts.first;
-        /**
-         * @brief STL find_if()函数，查找让这个函数返回true的第一个元素
-        */
-        auto it = find_if(feature.begin(), feature.end(), [feature_id](const FeaturePerId &it){
+        auto it = find_if(feature.begin(), feature.end(), [feature_id](const FeaturePerId &it)
+                          {
             return it.feature_id == feature_id;
-        });
-        // 返回的是最后一个元素的迭代器， 说明该特征点是第一次出现，在feature容器中创建一个
-        // FeaturePerId对象管理这个特征点
-        if(it == feature.end()){
+                          });
+
+        if (it == feature.end())
+        {
             feature.push_back(FeaturePerId(feature_id, frame_count));
             feature.back().feature_per_frame.push_back(f_per_fra);
         }
-        else if(it->feature_id == feature_id){
+        else if (it->feature_id == feature_id)
+        {
             it->feature_per_frame.push_back(f_per_fra);
-            last_track_num++;  // 当前帧跟踪到的特征点数
-        }
-    }
-    // 当前帧帧号小于2，或者跟踪到的特征点数小于20，则把前一帧作为关键帧
-    if(frame_count < 2 || last_track_num < 20){
-        return false;
-    }
-    // 计算能被当前帧和其前两帧共同看到的特征点的视差
-    for(auto &it_per_id : feature){
-        // 该特征点第一次被观察帧要小于次次新帧，结束帧大于等于次新帧
-        if(it_per_id.start_frame < frame_count - 2 && it_per_id.start_frame 
-            + int(it_per_id.feature_per_frame.size()) - 1 >= frame_count - 1){
-            parallax_sum += compensatedParallax2(it_per_id, frame_count);
-            parallax_num++;  
+            last_track_num++;
         }
     }
 
-    if(parallax_num == 0){ // 0表示当前帧和前两帧之间没有共视点，true边缘化老帧
+    if (frame_count < 2 || last_track_num < 20)
+        return true;
+
+    for (auto &it_per_id : feature)
+    {
+        if (it_per_id.start_frame <= frame_count - 2 &&
+            it_per_id.start_frame + int(it_per_id.feature_per_frame.size()) - 1 >= frame_count - 1)
+        {
+            parallax_sum += compensatedParallax2(it_per_id, frame_count);
+            parallax_num++;
+        }
+    }
+
+    if (parallax_num == 0)
+    {
         return true;
     }
-    else{
+    else
+    {
         RCUTILS_LOG_DEBUG("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
         RCUTILS_LOG_DEBUG("current parallax: %lf", parallax_sum / parallax_num * FOCAL_LENGTH);
         return parallax_sum / parallax_num >= MIN_PARALLAX;
     }
-}    
+}
 
 void FeatureManager::debugShow()
 {
@@ -122,44 +117,44 @@ void FeatureManager::debugShow()
     }
 }
 
-std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> FeatureManager::getCorresponding(
-    int frame_count_l, int frame_count_r){
-    
-    std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> corres;
-    for(auto &it : feature){
-        if(it.start_frame <= frame_count_l && it.endFrame() >= frame_count_r){ // 该特征点要在两帧中都有
-            Eigen::Vector3d a = Eigen::Vector3d::Zero(), b = Eigen::Vector3d::Zero();
+vector<pair<Vector3d, Vector3d>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r)
+{
+    vector<pair<Vector3d, Vector3d>> corres;
+    for (auto &it : feature)
+    {
+        if (it.start_frame <= frame_count_l && it.endFrame() >= frame_count_r)
+        {
+            Vector3d a = Vector3d::Zero(), b = Vector3d::Zero();
             int idx_l = frame_count_l - it.start_frame;
             int idx_r = frame_count_r - it.start_frame;
 
             a = it.feature_per_frame[idx_l].point;
-            b = it.feature_per_frame[idx_r].point;
 
-            corres.push_back(std::make_pair(a, b));
+            b = it.feature_per_frame[idx_r].point;
+            
+            corres.push_back(make_pair(a, b));
         }
     }
     return corres;
 }
 
-/**
- * @brief 设置深度，在void Estimator::double2vector()中用了，如果失败，把solve_flag设置为2
-*/
-void FeatureManager::setDepth(const Eigen::VectorXd &x){
+void FeatureManager::setDepth(const VectorXd &x)
+{
     int feature_index = -1;
-    for(auto &it_per_id : feature){
+    for (auto &it_per_id : feature)
+    {
         it_per_id.used_num = it_per_id.feature_per_frame.size();
-        // 特征点没有在两帧及以上出现，开始出现帧不是小于滑动窗口大小减2
-        if(!(it_per_id.used_num >=2 && it_per_id.start_frame < WINDOW_SIZE - 2)){
+        if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
             continue;
-        }
 
         it_per_id.estimated_depth = 1.0 / x(++feature_index);
-        if(it_per_id.estimated_depth < 0){
+        //RCUTILS_LOG_INFO("feature id %d , start_frame %d, depth %f ", it_per_id->feature_id, it_per_id-> start_frame, it_per_id->estimated_depth);
+        if (it_per_id.estimated_depth < 0)
+        {
             it_per_id.solve_flag = 2;
         }
-        else{
+        else
             it_per_id.solve_flag = 1;
-        } 
     }
 }
 
@@ -174,7 +169,7 @@ void FeatureManager::removeFailures()
     }
 }
 
-void FeatureManager::clearDepth(const Eigen::VectorXd &x)
+void FeatureManager::clearDepth(const VectorXd &x)
 {
     int feature_index = -1;
     for (auto &it_per_id : feature)
@@ -186,9 +181,9 @@ void FeatureManager::clearDepth(const Eigen::VectorXd &x)
     }
 }
 
-Eigen::VectorXd FeatureManager::getDepthVector()
+VectorXd FeatureManager::getDepthVector()
 {
-    Eigen::VectorXd dep_vec(getFeatureCount());
+    VectorXd dep_vec(getFeatureCount());
     int feature_index = -1;
     for (auto &it_per_id : feature)
     {
@@ -203,10 +198,8 @@ Eigen::VectorXd FeatureManager::getDepthVector()
     }
     return dep_vec;
 }
-/**
- * @brief 利用svd方法对双目进行三角化
-*/
-void FeatureManager::triangulate(Eigen::Vector3d Ps[], Eigen::Vector3d tic[], Eigen::Matrix3d ric[])
+
+void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[])
 {
     for (auto &it_per_id : feature)
     {
@@ -265,6 +258,7 @@ void FeatureManager::triangulate(Eigen::Vector3d Ps[], Eigen::Vector3d tic[], Ei
 
 void FeatureManager::removeOutlier()
 {
+    // ROS_BREAK();
     int i = -1;
     for (auto it = feature.begin(), it_next = feature.begin();
          it != feature.end(); it = it_next)
@@ -366,13 +360,13 @@ double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int f
     const FeaturePerFrame &frame_j = it_per_id.feature_per_frame[frame_count - 1 - it_per_id.start_frame];
 
     double ans = 0;
-    Eigen::Vector3d p_j = frame_j.point;
+    Vector3d p_j = frame_j.point;
 
     double u_j = p_j(0);
     double v_j = p_j(1);
 
-    Eigen::Vector3d p_i = frame_i.point;
-    Eigen::Vector3d p_i_comp;
+    Vector3d p_i = frame_i.point;
+    Vector3d p_i_comp;
 
     //int r_i = frame_count - 2;
     //int r_j = frame_count - 1;
@@ -382,13 +376,13 @@ double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int f
     double u_i = p_i(0) / dep_i;
     double v_i = p_i(1) / dep_i;
     double du = u_i - u_j, dv = v_i - v_j;
-    // 这一步和上一步相同
+
     double dep_i_comp = p_i_comp(2);
     double u_i_comp = p_i_comp(0) / dep_i_comp;
     double v_i_comp = p_i_comp(1) / dep_i_comp;
     double du_comp = u_i_comp - u_j, dv_comp = v_i_comp - v_j;
 
-    ans = std::max(ans, sqrt(std::min(du * du + dv * dv, du_comp * du_comp + dv_comp * dv_comp)));
+    ans = max(ans, sqrt(min(du * du + dv * dv, du_comp * du_comp + dv_comp * dv_comp)));
 
     return ans;
 }

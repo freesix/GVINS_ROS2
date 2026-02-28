@@ -1,4 +1,4 @@
-#include "pose_anchor_factor.hpp"
+#include "pose_anchor_factor.h"
 
 PoseAnchorFactor::PoseAnchorFactor(const std::vector<double> anchor_value)
 {

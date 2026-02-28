@@ -1,56 +1,49 @@
-#include "projection_factor.hpp"
+#include "projection_factor.h"
 
 Eigen::Matrix2d ProjectionFactor::sqrt_info;
 double ProjectionFactor::sum_t;
 
-ProjectionFactor::ProjectionFactor(const Eigen::Vector3d &_pts_i, const Eigen::Vector3d &_pts_j)
-    : pts_i(_pts_i), pts_j(_pts_j){
+ProjectionFactor::ProjectionFactor(const Eigen::Vector3d &_pts_i, const Eigen::Vector3d &_pts_j) : pts_i(_pts_i), pts_j(_pts_j)
+{
 #ifdef UNIT_SPHERE_ERROR
     Eigen::Vector3d b1, b2;
     Eigen::Vector3d a = pts_j.normalized();
     Eigen::Vector3d tmp(0, 0, 1);
-    if(a == tmp){
+    if(a == tmp)
         tmp << 1, 0, 0;
-    }
     b1 = (tmp - a * (a.transpose() * tmp)).normalized();
     b2 = a.cross(b1);
     tangent_base.block<1, 3>(0, 0) = b1.transpose();
     tangent_base.block<1, 3>(1, 0) = b2.transpose();
-#endif    
+#endif
 };
 
-/**
- * @brief 视觉投影测量残差估计
- * @param parameters 待优化参数
- * @param residuals 残差
- * @param jacobians 关于残差的雅可比矩阵
-*/
-bool ProjectionFactor::Evaluate(double const *const *parameters, double *residuals,
-    double **jacobians) const{
+bool ProjectionFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
+{
     TicToc tic_toc;
-    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]); // 机体在i处的世界坐标系下的位置
-    Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]); // 机体在i处的世界坐标系下的姿态
+    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
+    Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
 
-    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]); // 机体在j处的世界坐标系下的位置
-    Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]); // 机体在j处的世界坐标系下的姿态
+    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
+    Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
 
-    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]); // 相机坐标系到imu坐标系的平移
-    Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]); // 相机坐标系到imu坐标系的旋转
+    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
+    Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
 
-    double inv_dep_i = parameters[3][0]; // 特征点的逆深度
+    double inv_dep_i = parameters[3][0];
 
-    Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i; // 从像素坐标系到相机坐标系
-    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic; // 从相机坐标系到imu坐标系
-    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi; // imu坐标系到世界坐标系
-    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj); // 从世界坐标系根据相机j的位姿转换到imu坐标系
-    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic); // 转换到相机坐标系
+    Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i;
+    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
+    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
+    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
+    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
     Eigen::Map<Eigen::Vector2d> residual(residuals);
 
-#ifdef UNIT_SPHERE_ERROR
-    residual = tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
+#ifdef UNIT_SPHERE_ERROR 
+    residual =  tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
 #else
     double dep_j = pts_camera_j.z();
-    residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>(); // 计算两个相机对应同一点的像素坐标之间的误差
+    residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>();
 #endif
 
     residual = sqrt_info * residual;
@@ -113,7 +106,7 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
             jacobian_ex_pose.rightCols<1>().setZero();
         }
         if (jacobians[3])
-        {   // 关于深度的雅可比
+        {
             Eigen::Map<Eigen::Vector2d> jacobian_feature(jacobians[3]);
 #if 1
             jacobian_feature = reduce * ric.transpose() * Rj.transpose() * Ri * ric * pts_i * -1.0 / (inv_dep_i * inv_dep_i);

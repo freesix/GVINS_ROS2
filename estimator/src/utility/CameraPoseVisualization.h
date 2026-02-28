@@ -7,6 +7,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 
+
 class CameraPoseVisualization {
 public:
 	std::string m_marker_ns;
@@ -22,7 +23,6 @@ public:
 	void reset();
 	void publish_by(rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr &pub, 
 		const std_msgs::msg::Header &header);
-	// void publish_by(ros::Publisher& pub, const std_msgs::Header& header);
 	void add_edge(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1);
 	void add_loopedge(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1);
 private:

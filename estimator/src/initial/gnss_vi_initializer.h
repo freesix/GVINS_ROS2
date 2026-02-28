@@ -1,4 +1,5 @@
-#pragma once 
+#ifndef GNSS_VI_INITIALIZER
+#define GNSS_VI_INITIALIZER
 
 #include <vector>
 #include <eigen3/Eigen/Dense>
@@ -6,7 +7,7 @@
 #include <gnss_comm/gnss_utility.hpp>
 #include <gnss_comm/gnss_spp.hpp>
 
-#include "../feature_manager.hpp"
+#include "../feature_manager.h"
 
 using namespace gnss_comm;
 
@@ -31,7 +32,7 @@ class GNSSVIInitializer
     private:
         const std::vector<std::vector<ObsPtr>> &gnss_meas_buf;
         const std::vector<std::vector<EphemBasePtr>> &gnss_ephem_buf;
-        const std::vector<double> &iono_params; // 电离层参数
+        const std::vector<double> &iono_params;
 
         uint32_t num_all_meas;
         std::vector<std::vector<SatStatePtr>> all_sat_states;
@@ -39,3 +40,6 @@ class GNSSVIInitializer
         static constexpr uint32_t MAX_ITERATION = 10;
         static constexpr double   CONVERGENCE_EPSILON = 1e-5;
 };
+
+
+#endif

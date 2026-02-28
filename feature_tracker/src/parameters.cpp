@@ -1,23 +1,23 @@
-#include "parameters.hpp"
-
-int ROW;
-int COL;
-int FOCAL_LENGTH; 
+#include "parameters.h"
 
 std::string IMAGE_TOPIC;
 std::string IMU_TOPIC;
-std::string FISHEYE_MASK; 
 std::vector<std::string> CAM_NAMES;
+std::string FISHEYE_MASK;
 int MAX_CNT;
 int MIN_DIST;
 int WINDOW_SIZE;
-int FREQ; 
-double F_THRESHOLD; 
-int SHOW_TRACK; 
-int STEREO_TRACK; 
-int EQUALIZE; 
+int FREQ;
+double F_THRESHOLD;
+int SHOW_TRACK;
+int STEREO_TRACK;
+int EQUALIZE;
+int ROW;
+int COL;
+int FOCAL_LENGTH;
 int FISHEYE;
 bool PUB_THIS_FRAME;
+
 
 template<typename T>
 T readParam(rclcpp::Node::SharedPtr n, std::string name){
@@ -33,14 +33,10 @@ T readParam(rclcpp::Node::SharedPtr n, std::string name){
 }
 
 
-
 void readParameters(rclcpp::Node::SharedPtr n)
 {
     std::string config_file;
-    // config_file = "/home/freesix/GVINS_ROS2_WS/src/GVINS/config/visensor_f9p/visensor_left_f9p_config.yaml";
-    // n->get_parameter("config_file", config_file);
     config_file = readParam<std::string>(n, "config_file");
-    RCLCPP_INFO(n->get_logger(), "read config file from %s", config_file.c_str());
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {
@@ -72,5 +68,6 @@ void readParameters(rclcpp::Node::SharedPtr n)
         FREQ = 100;
 
     fsSettings.release();
+
 
 }

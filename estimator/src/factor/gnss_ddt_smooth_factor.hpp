@@ -1,4 +1,5 @@
-#pragma once 
+#ifndef DDT_SMOOTH_FACTOR_H_
+#define DDT_SMOOTH_FACTOR_H_
 
 #include <Eigen/Dense>
 #include <ceres/ceres.h>
@@ -15,3 +16,5 @@ class DdtSmoothFactor : public ceres::SizedCostFunction<1, 1, 1>
     private:
         double weight_;
 };
+
+#endif

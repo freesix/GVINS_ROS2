@@ -1,4 +1,4 @@
-#include "marginalization_factor.hpp"
+#include "marginalization_factor.h"
 
 void ResidualBlockInfo::Evaluate()
 {
@@ -32,7 +32,7 @@ void ResidualBlockInfo::Evaluate()
     //}
     //Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(tmp);
     //std::cout << saes.eigenvalues() << std::endl;
-    //assert(saes.eigenvalues().minCoeff() >= -1e-6);
+    //ROS_ASSERT(saes.eigenvalues().minCoeff() >= -1e-6);
 
     if (loss_function)
     {
@@ -250,6 +250,7 @@ void MarginalizationInfo::marginalize()
         if (ret != 0)
         {
             RCUTILS_LOG_WARN("pthread_create error");
+            // ROS_BREAK();
         }
     }
     for( int i = NUM_THREADS - 1; i >= 0; i--)  

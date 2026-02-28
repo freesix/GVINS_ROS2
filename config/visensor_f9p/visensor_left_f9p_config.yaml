@@ -1,10 +1,8 @@
 %YAML:1.0
-#/**:
-#   ros__parameters:
 
 #common parameters
 imu_topic: "/imu0"
-image_topic: "/cam0/image_raw"
+image_topic: "/cam1/image_raw"
 output_dir: "~/output/"
 
 #camera calibration 

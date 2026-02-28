@@ -5,30 +5,28 @@
 #include <mutex>
 #include <condition_variable>
 #include <rclcpp/rclcpp.hpp>
-#include <rclcpp/logger.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <gnss_comm/gnss_ros.hpp>
 #include <gnss_comm/gnss_utility.hpp>
-#include <estimator_interfaces/msg/local_sensor_external_trigger.hpp>
+#include <gvins/msg/local_sensor_external_trigger.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 
-#include "estimator.hpp"
-#include "parameters.hpp"
-#include "utility/visualization.hpp"
+#include "estimator.h"
+#include "parameters.h"
+#include "utility/visualization.h"
 
-using namespace gnss_comm;
 
 #define MAX_GNSS_CAMERA_DELAY 0.05
 
 std::unique_ptr<Estimator> estimator_ptr;
 
-std::condition_variable con; // 状态变量
+std::condition_variable con;
 double current_time = -1;
-std::queue<std::shared_ptr<sensor_msgs::msg::Imu>> imu_buf;
-std::queue<std::shared_ptr<sensor_msgs::msg::PointCloud>> feature_buf;
-std::queue<std::vector<ObsPtr>> gnss_meas_buf;
-std::queue<std::shared_ptr<sensor_msgs::msg::PointCloud>> relo_buf;
+queue<sensor_msgs::msg::Imu::SharedPtr> imu_buf;
+queue<sensor_msgs::msg::PointCloud::SharedPtr> feature_buf;
+queue<std::vector<ObsPtr>> gnss_meas_buf;
+queue<sensor_msgs::msg::PointCloud::SharedPtr> relo_buf;
 int sum_of_wait = 0;
 
 std::mutex m_buf;
@@ -49,16 +47,16 @@ bool init_imu = 1;
 double last_imu_t = -1;
 
 std::mutex m_time;
-double next_pulse_time; // pps触发时间
-bool next_pulse_time_valid; // 如果进入pps触发的回调函数，这个为true
-double time_diff_gnss_local; // pps触发时间和vi传感器实际被触发时间之间的差值
-bool time_diff_valid; // 为false则对于收到的gnss数据不会存储
+double next_pulse_time;
+bool next_pulse_time_valid;
+double time_diff_gnss_local;
+bool time_diff_valid;
 double latest_gnss_time;
 double tmp_last_feature_time;
 uint64_t feature_msg_counter;
 int skip_parameter;
 
-void predict(const std::shared_ptr<sensor_msgs::msg::Imu> &imu_msg)
+void predict(const sensor_msgs::msg::Imu::SharedPtr &imu_msg)
 {
     double t = stamp2Sec(imu_msg->header.stamp);
     if (init_imu)
@@ -108,49 +106,39 @@ void update()
     acc_0 = estimator_ptr->acc_0;
     gyr_0 = estimator_ptr->gyr_0;
 
-    std::queue<std::shared_ptr<sensor_msgs::msg::Imu>> tmp_imu_buf = imu_buf;
-    for (std::shared_ptr<sensor_msgs::msg::Imu> tmp_imu_msg; !tmp_imu_buf.empty(); 
-        tmp_imu_buf.pop()){
-        
+    queue<sensor_msgs::msg::Imu::SharedPtr> tmp_imu_buf = imu_buf;
+    for (sensor_msgs::msg::Imu::SharedPtr tmp_imu_msg; !tmp_imu_buf.empty(); tmp_imu_buf.pop())
         predict(tmp_imu_buf.front());
-    }
-}
-/**
- * @brief 根据时间戳检查传感器输入数据的合法性
-*/
-bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_msg, 
-    std::shared_ptr<sensor_msgs::msg::PointCloud> &img_msg, std::vector<ObsPtr> &gnss_msg)
-{   
-    // 当imu、feature、gnss数据有一个为空直接返回false
-    if (imu_buf.empty() || feature_buf.empty() || (GNSS_ENABLE && gnss_meas_buf.empty()))
-        // RCUTILS_LOG_INFO("only should happen at the beginning");
-        return false;
 
-    // RCUTILS_LOG_INFO("imu_buf: %ld", imu_buf.size());
-    // 将imu和图像的时间戳尽量对齐，front_feature_ts指feature_buf中的第一帧图像时间
+}
+
+bool
+getMeasurements(std::vector<sensor_msgs::msg::Imu::SharedPtr> &imu_msg, sensor_msgs::msg::PointCloud::SharedPtr &img_msg, std::vector<ObsPtr> &gnss_msg)
+{
+    if (imu_buf.empty() || feature_buf.empty() || (GNSS_ENABLE && gnss_meas_buf.empty()))
+        return false;
+    
     double front_feature_ts = stamp2Sec(feature_buf.front()->header.stamp);
 
     if (!(stamp2Sec(imu_buf.back()->header.stamp) > front_feature_ts))
     {
-        RCUTILS_LOG_INFO("wait for imu, only should happen at the beginning");
+        //RCUTILS_LOG_WARN("wait for imu, only should happen at the beginning");
         sum_of_wait++;
         return false;
     }
-    // feature缓存不为空，且imu时间大于feature时间，要丢弃部分图像帧数据
-    double front_imu_ts =stamp2Sec(imu_buf.front()->header.stamp);
+    double front_imu_ts = stamp2Sec(imu_buf.front()->header.stamp);
     while (!feature_buf.empty() && front_imu_ts > front_feature_ts)
     {
         RCUTILS_LOG_WARN("throw img, only should happen at the beginning");
         feature_buf.pop();
         front_feature_ts = stamp2Sec(feature_buf.front()->header.stamp);
     }
-    // 大致将gnss数据和图像数据对齐，实现三者之间的对齐
+
     if (GNSS_ENABLE)
     {
-        front_feature_ts += time_diff_gnss_local; // gnss时间和local本地时间偏差
+        front_feature_ts += time_diff_gnss_local;
         double front_gnss_ts = time2sec(gnss_meas_buf.front()[0]->time);
-        // gnss不为空，但时间小于图像帧，需要丢弃一部分
-        while (!gnss_meas_buf.empty() && front_gnss_ts < front_feature_ts-MAX_GNSS_CAMERA_DELAY) 
+        while (!gnss_meas_buf.empty() && front_gnss_ts < front_feature_ts-MAX_GNSS_CAMERA_DELAY)
         {
             RCUTILS_LOG_WARN("throw gnss, only should happen at the beginning");
             gnss_meas_buf.pop();
@@ -171,9 +159,9 @@ bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_ms
 
     img_msg = feature_buf.front();
     feature_buf.pop();
-    // 将早于当前帧图像晚于前一帧图像之间的imu和晚于当前图像的第一帧imu加入imu_msg和当前图像对齐(多帧imu对一帧图像)
+
     while (stamp2Sec(imu_buf.front()->header.stamp) < stamp2Sec(img_msg->header.stamp) + estimator_ptr->td)
-    {   
+    {
         imu_msg.emplace_back(imu_buf.front());
         imu_buf.pop();
     }
@@ -184,8 +172,7 @@ bool getMeasurements(std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> &imu_ms
 }
 
 void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
-{   
-    // RCUTILS_LOG_INFO("imu_msg time: %f", stamp2Sec(imu_msg->header.stamp));
+{
     if (stamp2Sec(imu_msg->header.stamp) <= last_imu_t)
     {
         RCUTILS_LOG_WARN("imu message in disorder!");
@@ -196,7 +183,7 @@ void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
     m_buf.lock();
     imu_buf.push(imu_msg);
     m_buf.unlock();
-    con.notify_one(); // 唤醒getMeasurements()
+    con.notify_one();
 
     last_imu_t = stamp2Sec(imu_msg->header.stamp);
 
@@ -205,9 +192,8 @@ void imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg)
         predict(imu_msg);
         std_msgs::msg::Header header = imu_msg->header;
         header.frame_id = "world";
-        // 初始化完成，处于滑动窗口非线性优化状态，如果不处于则不发布里程计信息
-        if (estimator_ptr->solver_flag == Estimator::SolverFlag::NON_LINEAR) 
-            pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header); // 发布频率很高，和imu数据同频
+        if (estimator_ptr->solver_flag == Estimator::SolverFlag::NON_LINEAR)
+            pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header);
     }
 }
 
@@ -222,15 +208,10 @@ void gnss_glo_ephem_callback(const gnss_comm::msg::GnssGloEphemMsg::SharedPtr gl
     GloEphemPtr glo_ephem = msg2glo_ephem(glo_ephem_msg);
     estimator_ptr->inputEphem(glo_ephem);
 }
-/**
- * @brief 电离层参数订阅
- * @details 考虑电离层和对流层对gnss传播的影响，后面会加上卫星仰角参数进行建模，因为仰角小
- * 的卫星在电离层中传播的时间较长，对定位影响大
-*/
+
 void gnss_iono_params_callback(const gnss_comm::msg::StampedFloat64Array::SharedPtr iono_msg)
 {
     double ts = stamp2Sec(iono_msg->header.stamp);
-    // RCUTILS_LOG_INFO("iono time: %f", ts);
     std::vector<double> iono_params;
     std::copy(iono_msg->data.begin(), iono_msg->data.end(), std::back_inserter(iono_params));
     assert(iono_params.size() == 8);
@@ -243,7 +224,7 @@ void gnss_meas_callback(const gnss_comm::msg::GnssMeasMsg::SharedPtr meas_msg)
 
     latest_gnss_time = time2sec(gnss_meas[0]->time);
 
-    // RCLCPP_INFO_STREAM(rclcpp::get_logger(""), "gnss ts is " << std::setprecision(20) << time2sec(gnss_meas[0]->time));
+    // cerr << "gnss ts is " << std::setprecision(20) << time2sec(gnss_meas[0]->time) << endl;
     if (!time_diff_valid)   return;
 
     m_buf.lock();
@@ -253,8 +234,7 @@ void gnss_meas_callback(const gnss_comm::msg::GnssMeasMsg::SharedPtr meas_msg)
 }
 
 void feature_callback(const sensor_msgs::msg::PointCloud::SharedPtr feature_msg)
-{   
-    RCUTILS_LOG_DEBUG("I coming feature_callback");
+{
     ++ feature_msg_counter;
 
     if (skip_parameter < 0 && time_diff_valid)
@@ -267,7 +247,7 @@ void feature_callback(const sensor_msgs::msg::PointCloud::SharedPtr feature_msg)
             else
                 skip_parameter = 1 - (feature_msg_counter%2);   // skip next frame and afterwards
         }
-        RCLCPP_INFO_STREAM(rclcpp::get_logger(""), "feature counter is " << feature_msg_counter << ", skip parameter is " << int(skip_parameter));
+        // cerr << "feature counter is " << feature_msg_counter << ", skip parameter is " << int(skip_parameter) << endl;
         tmp_last_feature_time = this_feature_ts;
     }
 
@@ -279,12 +259,8 @@ void feature_callback(const sensor_msgs::msg::PointCloud::SharedPtr feature_msg)
         con.notify_one();
     }
 }
-/**
- * @brief 获得local和gnss的时间差
- * @details trigger_msg记录的是相机被gnss触发的时间，可以理解为图像命名的时间，和gnss时间
- * 有差别，因为硬件存在延迟等。因此后面对这个时间进行矫正(当然这是在作者那个硬件系统中)
-*/
-void local_trigger_info_callback(const estimator_interfaces::msg::LocalSensorExternalTrigger::SharedPtr trigger_msg)
+
+void local_trigger_info_callback(const gvins::msg::LocalSensorExternalTrigger::SharedPtr trigger_msg)
 {
     std::lock_guard<std::mutex> lg(m_time);
 
@@ -300,9 +276,8 @@ void local_trigger_info_callback(const estimator_interfaces::msg::LocalSensorExt
 }
 
 void gnss_tp_info_callback(const gnss_comm::msg::GnssTimePulseInfoMsg::SharedPtr tp_msg)
-{   // 先把gnss时间转化为gtime_t数据结构
+{
     gtime_t tp_time = gpst2time(tp_msg->time.week, tp_msg->time.tow);
-    // 根据不同卫星再进一步处理时间
     if (tp_msg->utc_based || tp_msg->time_sys == SYS_GLO)
         tp_time = utc2gpst(tp_time);
     else if (tp_msg->time_sys == SYS_GAL)
@@ -317,7 +292,7 @@ void gnss_tp_info_callback(const gnss_comm::msg::GnssTimePulseInfoMsg::SharedPtr
     double gnss_ts = time2sec(tp_time);
 
     std::lock_guard<std::mutex> lg(m_time);
-    next_pulse_time = gnss_ts; // 记录pps触发时间
+    next_pulse_time = gnss_ts;
     next_pulse_time_valid = true;
 }
 
@@ -341,36 +316,28 @@ void restart_callback(const std_msgs::msg::Bool::SharedPtr restart_msg)
     }
     return;
 }
-/**
- * @brief 这是measurement线程的线程函数，用于处理后端部分，包括imu预积分、耦合初始化和local BA
-*/
+
 void process()
 {
     while (true)
-    {   
-        std::vector<std::pair<std::vector<std::shared_ptr<sensor_msgs::msg::Imu>>,
-            std::shared_ptr<sensor_msgs::msg::PointCloud>>>  measurements;
-        std::vector<std::shared_ptr<sensor_msgs::msg::Imu>> imu_msg;
-        std::shared_ptr<sensor_msgs::msg::PointCloud> img_msg;
+    {
+        std::vector<std::pair<std::vector<sensor_msgs::msg::Imu::SharedPtr>, sensor_msgs::msg::PointCloud::SharedPtr>> measurements;
+        std::vector<sensor_msgs::msg::Imu::SharedPtr> imu_msg;
+        sensor_msgs::msg::PointCloud::SharedPtr img_msg;
         std::vector<ObsPtr> gnss_msg;
-        // unique_lock对象lk独占所有权的方式管理mutex对象m_buf的上锁和解锁
-        std::unique_lock<std::mutex> lk(m_buf);
 
-        // 先调用匿名函数，从缓存队列中读取数据，如果measurements为空，则匿名函数返回false，调用wait(lock)，
-        // 释放m_buf（为了使图像和IMU回调函数可以访问缓存队列），阻塞当前线程，等待被con.notify_one()唤醒
-        // 直到measurements不为空时（成功从缓存队列获取数据），匿名函数返回true，则可以退出while循环。
+        std::unique_lock<std::mutex> lk(m_buf);
         con.wait(lk, [&]
                  {
                     return getMeasurements(imu_msg, img_msg, gnss_msg);
                  });
         lk.unlock();
-        m_estimator.lock(); 
+        m_estimator.lock();
         double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0;
-        // 遍历改组imu_msg中的各帧imu数据进行预积分
         for (auto &imu_data : imu_msg)
         {
             double t = stamp2Sec(imu_data->header.stamp);
-            double img_t = stamp2Sec(img_msg->header.stamp) + estimator_ptr->td; // 图像特征点的时间戳，补偿了一个通过优化得到的时间偏移
+            double img_t = stamp2Sec(img_msg->header.stamp) + estimator_ptr->td;
             if (t <= img_t)
             { 
                 if (current_time < 0)
@@ -384,11 +351,11 @@ void process()
                 rx = imu_data->angular_velocity.x;
                 ry = imu_data->angular_velocity.y;
                 rz = imu_data->angular_velocity.z;
-                estimator_ptr->processIMU(dt, Eigen::Vector3d(dx, dy, dz), Eigen::Vector3d(rx, ry, rz));
+                estimator_ptr->processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
                 //printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
 
             }
-            else // 针对最后一个imu数据做简单的线性插值
+            else
             {
                 double dt_1 = img_t - current_time;
                 double dt_2 = t - img_t;
@@ -404,17 +371,18 @@ void process()
                 rx = w1 * rx + w2 * imu_data->angular_velocity.x;
                 ry = w1 * ry + w2 * imu_data->angular_velocity.y;
                 rz = w1 * rz + w2 * imu_data->angular_velocity.z;
-                estimator_ptr->processIMU(dt_1, Eigen::Vector3d(dx, dy, dz), Eigen::Vector3d(rx, ry, rz));
+                estimator_ptr->processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
                 //printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
             }
         }
-        // 处理观测数据和星历数据，放进estimator中，在处理过程中会对gnss数据进行过滤
+
         if (GNSS_ENABLE && !gnss_msg.empty())
             estimator_ptr->processGNSS(gnss_msg);
 
-        // 对前端特征点信息处理记录并送入porcessImage
+        RCUTILS_LOG_DEBUG("processing vision data with stamp %f \n", stamp2Sec(img_msg->header.stamp));
+
         TicToc t_s;
-        std::map<int, std::vector<std::pair<int, Eigen::Matrix<double, 7, 1>>>> image;
+        map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
         for (unsigned int i = 0; i < img_msg->points.size(); i++)
         {
             int v = img_msg->channels[0].values[i] + 0.5;
@@ -455,7 +423,8 @@ void process()
     }
 }
 
-int main(int argc, char** argv){
+int main(int argc, char **argv)
+{   
     rclcpp::init(argc, argv);
     auto n = rclcpp::Node::make_shared("gvins");
 
@@ -465,21 +434,20 @@ int main(int argc, char** argv){
 #ifdef EIGEN_DONT_PARALLELIZE
     RCUTILS_LOG_DEBUG("EIGEN_DONT_PARALLELIZE");
 #endif
-    registerPub(n); // 注册发布节点
+
+    registerPub(n);
 
     next_pulse_time_valid = false;
     time_diff_valid = false;
-    // time_diff_valid = true;
     latest_gnss_time = -1;
     tmp_last_feature_time = -1;
     feature_msg_counter = 0;
 
-    if(GNSS_ENABLE){
+    if (GNSS_ENABLE)
         skip_parameter = -1;
-    }
-    else{
+    else
         skip_parameter = 0;
-    }
+
     auto sub_imu = n->create_subscription<sensor_msgs::msg::Imu>(IMU_TOPIC, 
         rclcpp::QoS(rclcpp::KeepLast(2000)), imu_callback);
     
@@ -493,7 +461,7 @@ int main(int argc, char** argv){
     rclcpp::Subscription<gnss_comm::msg::GnssMeasMsg>::SharedPtr sub_gnss_meas;
     rclcpp::Subscription<gnss_comm::msg::StampedFloat64Array>::SharedPtr sub_gnss_iono_params;
     rclcpp::Subscription<gnss_comm::msg::GnssTimePulseInfoMsg>::SharedPtr sub_gnss_time_pluse_info;
-    rclcpp::Subscription<estimator_interfaces::msg::LocalSensorExternalTrigger>::SharedPtr sub_local_trigger_info;
+    rclcpp::Subscription<gvins::msg::LocalSensorExternalTrigger>::SharedPtr sub_local_trigger_info;
     
     if(GNSS_ENABLE){
         sub_ephem = n->create_subscription<gnss_comm::msg::GnssEphemMsg>(GNSS_EPHEM_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)), gnss_ephem_callback);
@@ -508,7 +476,7 @@ int main(int argc, char** argv){
             sub_gnss_time_pluse_info = n->create_subscription<gnss_comm::msg::GnssTimePulseInfoMsg>(GNSS_TP_INFO_TOPIC,
                 rclcpp::QoS(rclcpp::KeepLast(100)), gnss_tp_info_callback);
                 
-            sub_local_trigger_info = n->create_subscription<estimator_interfaces::msg::LocalSensorExternalTrigger>(
+            sub_local_trigger_info = n->create_subscription<gvins::msg::LocalSensorExternalTrigger>(
                 LOCAL_TRIGGER_INFO_TOPIC, rclcpp::QoS(rclcpp::KeepLast(100)), local_trigger_info_callback);
         }
         else{ 
@@ -520,6 +488,6 @@ int main(int argc, char** argv){
     std::thread measurement_process{process};
     rclcpp::spin(n);
     rclcpp::shutdown();
-
+ 
     return 0;
 }

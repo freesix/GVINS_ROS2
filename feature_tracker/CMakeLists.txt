@@ -40,7 +40,7 @@ target_link_libraries(feature_tracker_lib
 ament_target_dependencies(feature_tracker_lib rclcpp camera_models geometry_msgs std_msgs sensor_msgs cv_bridge message_filters)
 
 add_executable(feature_tracker_node
-  feature_tracker_node.cpp
+  src/feature_tracker_node.cpp
 )
 ament_target_dependencies(feature_tracker_node rclcpp camera_models geometry_msgs std_msgs sensor_msgs cv_bridge message_filters)
 target_link_libraries(feature_tracker_node feature_tracker_lib)

@@ -1,6 +1,5 @@
-#include "estimator.hpp"
-using namespace Eigen;
-using namespace std;
+#include "estimator.h"
+
 Estimator::Estimator(): f_manager{Rs}
 {
     RCUTILS_LOG_INFO("init begins");
@@ -144,6 +143,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     RCUTILS_LOG_DEBUG("Solving %d", frame_count);
     RCUTILS_LOG_DEBUG("number of feature: %d", f_manager.getFeatureCount());
     Headers[frame_count] = header;
+
     ImageFrame imageframe(image, stamp2Sec(header.stamp));
     imageframe.pre_integration = tmp_pre_integration;
     all_image_frame.insert(make_pair(stamp2Sec(header.stamp), imageframe));
@@ -159,7 +159,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
             if (initial_ex_rotation.CalibrationExRotation(corres, pre_integrations[frame_count]->delta_q, calib_ric))
             {
                 RCUTILS_LOG_WARN("initial extrinsic rotation calib success");
-                // RCLCPP_WARN_STREAM("initial extrinsic rotation: " << endl << calib_ric);
+                // ROS_WARN_STREAM("initial extrinsic rotation: " << endl << calib_ric);
                 ric[0] = calib_ric;
                 RIC[0] = calib_ric;
                 ESTIMATE_EXTRINSIC = 1;
@@ -549,8 +549,8 @@ bool Estimator::visualInitialAlign()
         Vs[i] = rot_diff * Vs[i];
     }
 
-    // RCLCPP_DEBUG_STREAM("g0     " << g.transpose());
-    // RCLCPP_DEBUG_STREAM("my R0  " << Utility::R2ypr(Rs[0]).transpose());
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("estimator.cpp"), "g0     " << g.transpose());
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("estimator.cpp"), "my R0  " << Utility::R2ypr(Rs[0]).transpose());
 
     return true;
 }

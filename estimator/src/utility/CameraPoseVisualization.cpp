@@ -1,4 +1,4 @@
-#include "CameraPoseVisualization.hpp"
+#include "CameraPoseVisualization.h"
 
 const Eigen::Vector3d CameraPoseVisualization::imlt = Eigen::Vector3d(-1.0, -0.5, 1.0);
 const Eigen::Vector3d CameraPoseVisualization::imrt = Eigen::Vector3d( 1.0, -0.5, 1.0);
@@ -9,14 +9,14 @@ const Eigen::Vector3d CameraPoseVisualization::lt1 = Eigen::Vector3d(-0.7, -0.2,
 const Eigen::Vector3d CameraPoseVisualization::lt2 = Eigen::Vector3d(-1.0, -0.2, 1.0);
 const Eigen::Vector3d CameraPoseVisualization::oc = Eigen::Vector3d(0.0, 0.0, 0.0);
 
-void Eigen2Point(const Eigen::Vector3d& v, geometry_msgs::msg::Point &p) {
+void Eigen2Point(const Eigen::Vector3d& v, geometry_msgs::msg::Point& p) {
     p.x = v.x();
     p.y = v.y();
     p.z = v.z();
 }
 
 CameraPoseVisualization::CameraPoseVisualization(float r, float g, float b, float a)
-    : m_marker_ns("CameraPoseVisualization"), m_scale(0.2), m_line_width(0.01){
+    : m_marker_ns("CameraPoseVisualization"), m_scale(0.2), m_line_width(0.01) {
     m_image_boundary_color.r = r;
     m_image_boundary_color.g = g;
     m_image_boundary_color.b = b;
@@ -24,7 +24,7 @@ CameraPoseVisualization::CameraPoseVisualization(float r, float g, float b, floa
     m_optical_center_connector_color.r = r;
     m_optical_center_connector_color.g = g;
     m_optical_center_connector_color.b = b;
-    m_optical_center_connector_color.a = a;        
+    m_optical_center_connector_color.a = a;
 }
 
 void CameraPoseVisualization::setImageBoundaryColor(float r, float g, float b, float a) {
@@ -94,6 +94,7 @@ void CameraPoseVisualization::add_loopedge(const Eigen::Vector3d& p0, const Eige
 
     m_markers.push_back(marker);
 }
+
 
 void CameraPoseVisualization::add_pose(const Eigen::Vector3d& p, const Eigen::Quaterniond& q) {
     visualization_msgs::msg::Marker marker;

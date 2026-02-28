@@ -24,20 +24,16 @@ find_package(Eigen3 REQUIRED)
 find_package(Glog REQUIRED)
 find_package(VTK REQUIRED)
 find_package(Iconv)
+find_package(OpenCV REQUIRED)
+find_package(Ceres REQUIRED)
 
-rosidl_generate_interfaces(${PROJECT_NAME}
-    "msg/LocalSensorExternalTrigger.msg"
-    DEPENDENCIES std_msgs
-)
+find_package(rosidl_default_generators REQUIRED)
 
-include_directories(
-    ${CERES_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIRS}
-    ${OpenCV_INCLUDE_DIRS}
-    "../gnss_comm/include"
-)
+include_directories(${CERES_INCLUDE_DIRS})
+# gnns_comm includes
+include_directories("../gnss_comm/include")
 
-# 构建核心库
+
 add_library(${PROJECT_NAME}_lib
     src/estimator_node.cpp
     src/parameters.cpp
@@ -62,64 +58,26 @@ add_library(${PROJECT_NAME}_lib
     src/initial/initial_ex_rotation.cpp
     src/initial/gnss_vi_initializer.cpp
 )
+ament_target_dependencies(${PROJECT_NAME}_lib rclcpp rcpputils std_msgs sensor_msgs rosidl_default_generators
+    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm)
+target_link_libraries(${PROJECT_NAME}_lib ${OpenCV_LIBS} ${CERES_LIBRARIES} ${EIGEN3_LIBS})
 
-# 库的依赖（仅调用一次）
-ament_target_dependencies(${PROJECT_NAME}_lib 
-    rclcpp 
-    rcpputils 
-    std_msgs 
-    sensor_msgs 
-    geometry_msgs 
-    nav_msgs 
-    tf2 
-    tf2_ros 
-    cv_bridge 
-    visualization_msgs 
-    gnss_comm
-)
-
-# 链接第三方库（移除PRIVATE关键字，统一为plain写法）
-target_link_libraries(${PROJECT_NAME}_lib 
-    ${OpenCV_LIBS} 
-    ${CERES_LIBRARIES} 
-    ${EIGEN3_LIBS}
-    ${GLOG_LIBRARIES}
-    ${VTK_LIBRARIES}
-)
-
-# 链接ROS2类型支持（同样用plain写法）
-rosidl_get_typesupport_target(cpp_typesupport_target
-    ${PROJECT_NAME} rosidl_typesupport_cpp)
-target_link_libraries(${PROJECT_NAME}_lib "${cpp_typesupport_target}")
-
-# 构建可执行文件
 add_executable(estimator_node src/estimator_node.cpp)
-# 可执行文件的依赖
-ament_target_dependencies(estimator_node 
-    rclcpp 
-    std_msgs 
-    geometry_msgs
-)
-# 链接核心库（plain写法）
+ament_target_dependencies(${PROJECT_NAME}_lib rclcpp rcpputils std_msgs sensor_msgs rosidl_default_generators
+    geometry_msgs nav_msgs tf2 tf2_ros cv_bridge visualization_msgs gnss_comm)
 target_link_libraries(estimator_node ${PROJECT_NAME}_lib)
 
-# 导出配置
-ament_export_include_directories(include)
-ament_export_dependencies(
-    rosidl_default_runtime
-    rclcpp
-    std_msgs
-    geometry_msgs
-    tf2_ros
-)
 
-# 安装可执行文件
+ament_export_include_directories(include)
+ament_export_dependencies(rosidl_default_runtime)
+ament_export_dependencies(estimator_interfaces)
+
 install(TARGETS 
     estimator_node
     DESTINATION lib/${PROJECT_NAME}
 )
 
-# 安装launch和config目录
+
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}

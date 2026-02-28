@@ -4,7 +4,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <vector>
 #include <eigen3/Eigen/Dense>
-#include "utility/utility.hpp"
+#include "utility/utility.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <fstream>
@@ -59,9 +59,9 @@ void readParameters(rclcpp::Node::SharedPtr n);
 
 enum SIZE_PARAMETERIZATION
 {
-    SIZE_POSE = 7, // 位姿，旋转用四元数，因此为7
-    SIZE_SPEEDBIAS = 9, // 速度和偏置
-    SIZE_FEATURE = 1 // 特征点逆深度
+    SIZE_POSE = 7,
+    SIZE_SPEEDBIAS = 9,
+    SIZE_FEATURE = 1
 };
 
 enum StateOrder

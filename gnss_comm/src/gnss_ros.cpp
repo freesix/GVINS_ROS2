@@ -255,7 +255,7 @@ namespace gnss_comm
     msg::GnssBestXYZMsg best_xyz2msg(const BestXYZPtr &best_xyz)
     {
         msg::GnssBestXYZMsg gnss_best_xyz_msg;
-        gnss_best_xyz_msg.header.stamp = rclcpp::Time(time2sec(best_xyz->time));
+        gnss_best_xyz_msg.header.stamp = rclcpp::Time(static_cast<int64_t>(time2sec(best_xyz->time)*1e9));
         gnss_best_xyz_msg.header.frame_id = "ECEF";
         for (size_t i = 0; i < 3; ++i)
         {
@@ -319,7 +319,7 @@ namespace gnss_comm
     {
         msg::GnssSvsMsg svs_msg;
         if (svs.empty())    return svs_msg;
-        svs_msg.header.stamp = rclcpp::Time(time2sec(svs[0].time));
+        svs_msg.header.stamp = rclcpp::Time(static_cast<int64_t>(time2sec(svs[0].time)*1e9));
         for (auto & sv : svs)
         {
             svs_msg.sat.push_back(sv.sat);
